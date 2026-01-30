@@ -1,4 +1,4 @@
-﻿// Lavaniya_Dewi_YuanMao.cpp  (Main file)
+﻿// Lavaniya_Dewi_YuanMao.cpp (FULL MAIN - NO STL containers, nice table + wraps long names)
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -17,7 +17,6 @@
 // ---------- Date helper ----------
 static std::string todayDate() {
     std::time_t t = std::time(nullptr);
-
     std::tm tmResult{};
     localtime_s(&tmResult, &t);
 
@@ -40,22 +39,77 @@ static std::string statusText(char s) {
     return (s == 'A') ? "Available" : "Borrowed";
 }
 
-
-static std::string getGameName(GameNode* g) {
-    return g->gameName;
+static void printBorder(int nameW, int playersW, int timeW, int yearW, int statusW, int borrowedW) {
+    std::cout << "+"
+        << std::string(nameW + 2, '-') << "+"
+        << std::string(playersW + 2, '-') << "+"
+        << std::string(timeW + 2, '-') << "+"
+        << std::string(yearW + 2, '-') << "+"
+        << std::string(statusW + 2, '-') << "+"
+        << std::string(borrowedW + 2, '-') << "+\n";
 }
 
-static int getYearPublished(GameNode* g) {
-    return g->yearPublished;
+static void printCell(const std::string& s, int width) {
+    std::cout << " " << std::left << std::setw(width) << s << " ";
 }
 
-static int getMinPlaytime(GameNode* g) {
-    return g->minPlaytime;
+/*
+NO-STL word wrap:
+- Splits 'text' into up to maxLines lines
+- Each line is at most 'width' characters
+- Prefer breaking at spaces
+- Stores results into outLines[0..lineCount-1]
+*/
+static void wrapTextNoSTL(const std::string& text, int width,
+    std::string outLines[], int maxLines, int& lineCount) {
+    lineCount = 0;
+    if (width <= 0 || maxLines <= 0) return;
+
+    int n = static_cast<int>(text.size());
+    int start = 0;
+
+    while (start < n&& lineCount < maxLines) {
+        int end = start + width;
+        if (end > n) end = n;
+
+        // Try to break at last space within the line
+        int breakPos = -1;
+        for (int i = end - 1; i > start; i--) {
+            if (text[i] == ' ') { breakPos = i; break; }
+        }
+
+        if (breakPos != -1) {
+            outLines[lineCount++] = text.substr(start, breakPos - start);
+            start = breakPos + 1; // skip the space
+        }
+        else {
+            outLines[lineCount++] = text.substr(start, end - start);
+            start = end;
+        }
+
+        // Skip extra spaces
+        while (start < n && text[start] == ' ') start++;
+    }
+
+    // If text remains but we hit maxLines, mark the last line with "..."
+    if (start < n && lineCount > 0) {
+        std::string& last = outLines[lineCount - 1];
+        if (last.size() >= 3) {
+            last[last.size() - 3] = '.';
+            last[last.size() - 2] = '.';
+            last[last.size() - 1] = '.';
+        }
+        else {
+            last = "...";
+        }
+    }
 }
 
-static int getMaxPlaytime(GameNode* g) {
-    return g->maxPlaytime;
-}
+// ---------- Game field helpers ----------
+static std::string getGameName(GameNode* g) { return g->gameName; }
+static int getYearPublished(GameNode* g) { return g->yearPublished; }
+static int getMinPlaytime(GameNode* g) { return g->minPlaytime; }
+static int getMaxPlaytime(GameNode* g) { return g->maxPlaytime; }
 
 // ---------- Menus ----------
 static void showMainMenu() {
@@ -64,17 +118,17 @@ static void showMainMenu() {
     std::cout << "============================================\n";
     std::cout << "1. Admin Menu\n";
     std::cout << "2. Member Menu\n";
-    std::cout << "3. View Games\n";
+    std::cout << "3. View Games (Guest)\n";
     std::cout << "0. Exit\n";
     std::cout << "Select: ";
 }
 
 static void showAdminMenu() {
     std::cout << "\n==================== ADMIN MENU ====================\n";
-    std::cout << "1. Add Game Copy\n";
+    std::cout << "1. Add Game Copy (Add New Game)\n";
     std::cout << "2. Remove Game Copy\n";
     std::cout << "3. Add New Member\n";
-    std::cout << "4. View Borrow/Return Summary\n";
+    std::cout << "4. View Borrow/Return Summary (ALL)\n";
     std::cout << "0. Back\n";
     std::cout << "Select: ";
 }
@@ -91,37 +145,83 @@ static void showMemberMenu() {
     std::cout << "Select: ";
 }
 
-// ---------- Printing games nicely ----------
+// ---------- Printing games nicely (table + wrapping names) ----------
 static void printGamesHeader() {
-    printLine(110);
-    std::cout << std::left
-        << std::setw(35) << "Game Name"
-        << std::setw(12) << "Players"
-        << std::setw(14) << "Playtime"
-        << std::setw(8) << "Year"
-        << std::setw(12) << "Status"
-        << "BorrowedBy"
-        << "\n";
-    printLine(110);
+    const int NAME_W = 38;
+    const int PLAYERS_W = 9;
+    const int TIME_W = 11;
+    const int YEAR_W = 6;
+    const int STATUS_W = 10;
+    const int BORROWED_W = 10;
+
+    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
+
+    std::cout << "|";
+    printCell("Game Name", NAME_W);       std::cout << "|";
+    printCell("Players", PLAYERS_W);      std::cout << "|";
+    printCell("Playtime", TIME_W);        std::cout << "|";
+    printCell("Year", YEAR_W);            std::cout << "|";
+    printCell("Status", STATUS_W);        std::cout << "|";
+    printCell("BorrowedBy", BORROWED_W);  std::cout << "|\n";
+
+    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
+}
+
+static void printGamesBottomBorder() {
+    const int NAME_W = 38;
+    const int PLAYERS_W = 9;
+    const int TIME_W = 11;
+    const int YEAR_W = 6;
+    const int STATUS_W = 10;
+    const int BORROWED_W = 10;
+    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
 }
 
 static void printGameRow(GameNode* g) {
+    const int NAME_W = 38;
+    const int PLAYERS_W = 9;
+    const int TIME_W = 11;
+    const int YEAR_W = 6;
+    const int STATUS_W = 10;
+    const int BORROWED_W = 10;
+
     std::string name = getGameName(g);
     std::string players = std::to_string(g->minPlayers) + "-" + std::to_string(g->maxPlayers);
     std::string time = std::to_string(getMinPlaytime(g)) + "-" + std::to_string(getMaxPlaytime(g));
-    int year = getYearPublished(g);
+    std::string year = std::to_string(getYearPublished(g));
+    std::string status = statusText(g->status);
+    std::string borrowed = g->borrowedBy.empty() ? "-" : g->borrowedBy;
 
-    std::cout << std::left
-        << std::setw(35) << name
-        << std::setw(12) << players
-        << std::setw(14) << time
-        << std::setw(8) << year
-        << std::setw(12) << statusText(g->status)
-        << (g->borrowedBy.empty() ? "-" : g->borrowedBy)
-        << "\n";
+    const int MAX_LINES = 4;
+    std::string lines[MAX_LINES];
+    int lineCount = 0;
+    wrapTextNoSTL(name, NAME_W, lines, MAX_LINES, lineCount);
+    if (lineCount == 0) { lines[0] = ""; lineCount = 1; }
+
+    for (int i = 0; i < lineCount; i++) {
+        std::cout << "|";
+        printCell(lines[i], NAME_W); std::cout << "|";
+
+        if (i == 0) {
+            printCell(players, PLAYERS_W);   std::cout << "|";
+            printCell(time, TIME_W);         std::cout << "|";
+            printCell(year, YEAR_W);         std::cout << "|";
+            printCell(status, STATUS_W);     std::cout << "|";
+            printCell(borrowed, BORROWED_W); std::cout << "|\n";
+        }
+        else {
+            printCell("", PLAYERS_W);   std::cout << "|";
+            printCell("", TIME_W);      std::cout << "|";
+            printCell("", YEAR_W);      std::cout << "|";
+            printCell("", STATUS_W);    std::cout << "|";
+            printCell("", BORROWED_W);  std::cout << "|\n";
+        }
+    }
+
+    printGamesBottomBorder();
 }
 
-static void viewGamesAll(GameList& games, int limit = 0) {
+static void viewGamesAll(GameList& games) {
     GameNode* curr = games.getHead();
     if (!curr) {
         std::cout << "(No games loaded)\n";
@@ -131,17 +231,15 @@ static void viewGamesAll(GameList& games, int limit = 0) {
     printGamesHeader();
 
     int shown = 0;
-    while (curr && (limit <= 0 || shown < limit)) {
+    while (curr) {
         printGameRow(curr);
         curr = curr->next;
         shown++;
     }
 
-    printLine(110);
     std::cout << "Showing " << shown << " games.\n";
     std::cout << "Tip: Copy the Game Name exactly when borrowing/returning/rating.\n";
 }
-
 
 // ---------- Admin actions ----------
 static void adminAddGame(GameList& games) {
@@ -264,7 +362,6 @@ static void viewGameDetails(GameList& games, RatingList& ratings) {
 
     printGamesHeader();
     printGameRow(g);
-    printLine(110);
 
     double avg = ratings.getAverage(gameName);
     int count = ratings.countRatings(gameName);
@@ -296,7 +393,7 @@ static void gamesPlayableByN(GameList& games, RatingList& ratings) {
     if (!(std::cin >> sortChoice)) { std::cin.clear(); clearInputLine(); return; }
     clearInputLine();
 
-    const int MAX = 3000;
+    const int MAX = 5000;
     GameNode** arr = new GameNode * [MAX];
     int count = 0;
 
@@ -313,13 +410,13 @@ static void gamesPlayableByN(GameList& games, RatingList& ratings) {
             for (int j = 0; j < count - 1 - i; j++) {
                 bool swapNeeded = false;
 
-                if (sortChoice == 1) { // year asc
+                if (sortChoice == 1) {
                     if (arr[j]->yearPublished > arr[j + 1]->yearPublished) swapNeeded = true;
                 }
-                else if (sortChoice == 2) { // year desc
+                else if (sortChoice == 2) {
                     if (arr[j]->yearPublished < arr[j + 1]->yearPublished) swapNeeded = true;
                 }
-                else if (sortChoice == 3) { // avg rating desc
+                else if (sortChoice == 3) {
                     double a = avgRatingForName(ratings, arr[j]->gameName);
                     double b = avgRatingForName(ratings, arr[j + 1]->gameName);
                     if (a < b) swapNeeded = true;
@@ -338,7 +435,6 @@ static void gamesPlayableByN(GameList& games, RatingList& ratings) {
     for (int i = 0; i < count; i++) {
         printGameRow(arr[i]);
     }
-    printLine(110);
     std::cout << "Matches for N=" << N << ": " << count << "\n";
 
     delete[] arr;
@@ -351,7 +447,6 @@ int main() {
     TransactionQueue tx;
     RatingList ratings;
 
-    // Load CSV at start
     games.loadFromCSV("data/games.csv");
 
     int choice = -1;
@@ -400,7 +495,7 @@ int main() {
             }
         }
         else if (choice == 3) {
-            viewGamesAll(games, 0);
+            viewGamesAll(games);
         }
         else if (choice == 0) {
             std::cout << "Goodbye!\n";
