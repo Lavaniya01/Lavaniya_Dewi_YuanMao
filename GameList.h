@@ -24,6 +24,8 @@ public:
     void printAll(int limit = 30) const; // nicer: limit output
 
     bool loadFromCSV(const std::string& filename);
+    bool appendGameToCSV(const std::string& filename, const GameNode& g);
+
 
     void printGameSummary() const;
 };

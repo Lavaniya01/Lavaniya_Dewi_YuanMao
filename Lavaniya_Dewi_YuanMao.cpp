@@ -288,6 +288,10 @@ static void adminAddGame(GameList& games) {
     node->borrowedBy = "";
 
     games.append(node);
+    if (!games.appendGameToCSV("data/games.csv", *node)) {
+        std::cout << "WARNING: Game saved in memory but failed to write to CSV.\n";
+    }
+
     std::cout << "Game copy added.\n";
 }
 
@@ -316,6 +320,10 @@ static void adminAddMember(MemberList& members) {
     m->memberID = id;
     m->name = name;
     members.append(m);
+    if (!members.appendMemberToCSV("data/members.csv", id, name)) {
+        std::cout << "WARNING: Member saved in memory but failed to write to CSV.\n";
+    }
+
 
     std::cout << "Member added.\n";
 }

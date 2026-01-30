@@ -19,6 +19,10 @@ public:
     MemberNode* findByID(const std::string& memberID);
     bool exists(const std::string& memberID) const;
     bool loadFromCSV(const std::string& filename);
+    bool appendMemberToCSV(const std::string& filename,
+        const std::string& memberID,
+        const std::string& name);
+
 
 };
 

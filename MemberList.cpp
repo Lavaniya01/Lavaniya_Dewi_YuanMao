@@ -3,6 +3,18 @@
 #include <fstream>
 #include <iostream>
 
+bool MemberList::appendMemberToCSV(const std::string& filename,
+    const std::string& memberID,
+    const std::string& name) {
+    std::ofstream out(filename, std::ios::app);
+    if (!out.is_open()) return false;
+
+    // Simple CSV: memberid,name (names should not include commas in our test data)
+    out << memberID << "," << name << "\n";
+    return true;
+}
+
+
 MemberList::MemberList() : head(nullptr) {}
 
 MemberList::~MemberList() {

@@ -139,6 +139,47 @@ bool GameList::removeByName(const std::string& gameName) {
     return false;
 }
 
+#include <fstream>
+
+// Quote a CSV field if needed (handles commas and quotes)
+static std::string csvEscape(const std::string& s) {
+    bool needsQuotes = false;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == ',' || s[i] == '"' || s[i] == '\n' || s[i] == '\r') {
+            needsQuotes = true;
+            break;
+        }
+    }
+    if (!needsQuotes) return s;
+
+    std::string out = "\"";
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == '"') out += "\"\""; // escape " as ""
+        else out += s[i];
+    }
+    out += "\"";
+    return out;
+}
+
+bool GameList::appendGameToCSV(const std::string& filename,
+    const GameNode& g) {
+    std::ofstream out(filename, std::ios::app);
+    if (!out.is_open()) return false;
+
+    // Match your assignment header exactly:
+    // name,minplayers,maxplayers,maxplaytime,minplaytime,yearpublished
+    out << csvEscape(g.gameName) << ","
+        << g.minPlayers << ","
+        << g.maxPlayers << ","
+        << g.maxPlaytime << ","
+        << g.minPlaytime << ","
+        << g.yearPublished
+        << "\n";
+
+    return true;
+}
+
+
 void GameList::printAll(int limit) const {
     std::cout << "Game Name\t\tPlayers\tPlaytime\tYear\tStatus\tBorrowedBy\n";
     std::cout << "--------------------------------------------------------------------------\n";
