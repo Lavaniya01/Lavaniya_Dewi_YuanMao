@@ -13,6 +13,7 @@
 #include "TransactionQueue.h"
 #include "RatingList.h"
 #include "Utils.h"
+#include <limits>
 
 // ---------- Date helper ----------
 static std::string todayDate() {
@@ -228,18 +229,36 @@ static void viewGamesAll(GameList& games) {
         return;
     }
 
+    const int PAGE_SIZE = 10;
+    int shown = 0;
+    int pageCount = 0;
+
     printGamesHeader();
 
-    int shown = 0;
     while (curr) {
-        printGameRow(curr);
-        curr = curr->next;
-        shown++;
+        int printedThisPage = 0;
+
+        // Print up to PAGE_SIZE games
+        while (curr && printedThisPage < PAGE_SIZE) {
+            printGameRow(curr);
+            curr = curr->next;
+            printedThisPage++;
+            shown++;
+        }
+
+        pageCount++;
+
+        // If more games remain, pause
+        if (curr) {
+            std::cout << "---- Showing " << shown
+                << " games so far. Press ENTER to load more ----";
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
     }
 
-    std::cout << "Showing " << shown << " games.\n";
-    std::cout << "Tip: Copy the Game Name exactly when borrowing/returning/rating.\n";
+    std::cout << "\nEnd of list. Total games shown: " << shown << "\n";
 }
+
 
 // ---------- Admin actions ----------
 static void adminAddGame(GameList& games) {
