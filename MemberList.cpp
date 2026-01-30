@@ -1,5 +1,7 @@
 ﻿#include "MemberList.h"
-#include "MemberNode.h"   // ✅ MUST be included here for full definition
+#include "MemberNode.h"   
+#include <fstream>
+#include <iostream>
 
 MemberList::MemberList() : head(nullptr) {}
 
@@ -43,6 +45,67 @@ MemberNode* MemberList::findByID(const std::string& memberID) {
         curr = curr->next;
     }
     return nullptr;
+}
+
+// Load members from CSV file
+bool MemberList::loadFromCSV(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "WARNING: Cannot open " << filename << "\n";
+        return false;
+    }
+
+    // Optional: clear existing members
+    clear();
+
+    std::string line;
+
+    // Skip header line
+    if (!std::getline(file, line)) {
+        std::cout << "WARNING: members.csv is empty\n";
+        return false;
+    }
+
+    int loaded = 0;
+    int skipped = 0;
+
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+
+        // Simple split: memberid,name
+        size_t commaPos = line.find(',');
+        if (commaPos == std::string::npos) {
+            skipped++;
+            continue;
+        }
+
+        std::string id = line.substr(0, commaPos);
+        std::string name = line.substr(commaPos + 1);
+
+        if (id.empty() || name.empty()) {
+            skipped++;
+            continue;
+        }
+
+        // Avoid duplicate members
+        if (exists(id)) {
+            skipped++;
+            continue;
+        }
+
+        MemberNode* m = new MemberNode();
+        m->memberID = id;
+        m->name = name;
+        m->next = nullptr;
+
+        append(m);
+        loaded++;
+    }
+
+    std::cout << "Loaded " << loaded << " members from CSV. "
+        << "(Skipped " << skipped << " rows)\n";
+
+    return true;
 }
 
 bool MemberList::exists(const std::string& memberID) const {

@@ -18,6 +18,8 @@ public:
 
     MemberNode* findByID(const std::string& memberID);
     bool exists(const std::string& memberID) const;
+    bool loadFromCSV(const std::string& filename);
+
 };
 
 #endif

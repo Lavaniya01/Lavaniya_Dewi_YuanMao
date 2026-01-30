@@ -448,6 +448,8 @@ int main() {
     RatingList ratings;
 
     games.loadFromCSV("data/games.csv");
+    members.loadFromCSV("data/members.csv");
+
 
     int choice = -1;
     while (choice != 0) {
