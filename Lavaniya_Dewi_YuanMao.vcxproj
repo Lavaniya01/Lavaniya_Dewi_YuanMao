@@ -131,6 +131,7 @@
     <ClCompile Include="Lavaniya_Dewi_YuanMao.cpp" />
     <ClCompile Include="MemberList.cpp" />
     <ClCompile Include="RatingList.cpp" />
+    <ClCompile Include="ReviewList.cpp" />
     <ClCompile Include="TransactionQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -140,6 +141,8 @@
     <ClInclude Include="MemberNode.h" />
     <ClInclude Include="RatingList.h" />
     <ClInclude Include="RatingNode.h" />
+    <ClInclude Include="ReviewList.h" />
+    <ClInclude Include="ReviewNode.h" />
     <ClInclude Include="TransactionNode.h" />
     <ClInclude Include="TransactionQueue.h" />
     <ClInclude Include="Utils.h" />

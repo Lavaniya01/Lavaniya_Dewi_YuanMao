@@ -1,4 +1,4 @@
-﻿// Lavaniya_Dewi_YuanMao.cpp (FULL MAIN - NO STL containers, nice table + wraps long names)
+﻿// Lavaniya_Dewi_YuanMao.cpp (FULL MAIN - Reviews + Nice Table + CSV Persistence)
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -12,6 +12,7 @@
 #include "MemberNode.h"
 #include "TransactionQueue.h"
 #include "RatingList.h"
+#include "ReviewList.h"  // NEW: Review feature
 #include "Utils.h"
 #include <limits>
 
@@ -140,8 +141,10 @@ static void showMemberMenu() {
     std::cout << "2. Return a Game\n";
     std::cout << "3. My Borrow/Return Summary\n";
     std::cout << "4. Rate a Game (1-10)\n";
-    std::cout << "5. View Game Details (Average Rating)\n";
-    std::cout << "6. Games Playable by N Players (Sort)\n";
+    std::cout << "5. Write a Review for a Game\n";      // NEW
+    std::cout << "6. Read Reviews for a Game\n";        // NEW
+    std::cout << "7. View Game Details (Average Rating)\n";
+    std::cout << "8. Games Playable by N Players (Sort)\n";
     std::cout << "0. Back\n";
     std::cout << "Select: ";
 }
@@ -257,8 +260,8 @@ static void viewGamesAll(GameList& games) {
     }
 
     std::cout << "\nEnd of list. Total games shown: " << shown << "\n";
+    std::cout << "Tip: Copy the Game Name exactly when borrowing/returning/rating/reviewing.\n";
 }
-
 
 // ---------- Admin actions ----------
 static void adminAddGame(GameList& games) {
@@ -324,7 +327,6 @@ static void adminAddMember(MemberList& members) {
         std::cout << "WARNING: Member saved in memory but failed to write to CSV.\n";
     }
 
-
     std::cout << "Member added.\n";
 }
 
@@ -381,7 +383,59 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
     std::cout << "Rating saved.\n";
 }
 
-static void viewGameDetails(GameList& games, RatingList& ratings) {
+// ---------- NEW: Review actions ----------
+static void memberWriteReview(GameList& games, MemberList& members, ReviewList& reviews) {
+    std::cout << "\n--- Write a Review ---\n";
+    std::string memberID = readLine("MemberID: ");
+    if (!members.exists(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    std::string gameName = readLine("Game Name: ");
+    GameNode* g = games.findByName(gameName);
+    if (!g) { std::cout << "Game not found. (Tip: copy the name exactly from View Games)\n"; return; }
+
+    // Check if already reviewed
+    if (reviews.hasReviewed(memberID, gameName)) {
+        std::cout << "You have already reviewed this game. This will update your previous review.\n";
+    }
+
+    int rating;
+    if (!readInt("Rating (1-10): ", rating)) { std::cout << "Invalid rating.\n"; return; }
+    if (rating < 1 || rating > 10) { std::cout << "Rating must be between 1 and 10.\n"; return; }
+
+    std::cout << "Write your review (press Enter twice when done):\n";
+    std::cout << "> ";
+
+    std::string reviewText;
+    std::string line;
+
+    // Read multiple lines until empty line
+    while (std::getline(std::cin, line)) {
+        if (line.empty()) break;
+        if (!reviewText.empty()) reviewText += "\n";
+        reviewText += line;
+        std::cout << "> ";
+    }
+
+    if (reviewText.empty()) {
+        std::cout << "Review cannot be empty.\n";
+        return;
+    }
+
+    reviews.addOrUpdate(memberID, gameName, rating, reviewText, todayDate());
+    std::cout << "\nReview saved successfully!\n";
+}
+
+static void memberReadReviews(GameList& games, ReviewList& reviews) {
+    std::cout << "\n--- Read Reviews ---\n";
+    std::string gameName = readLine("Enter Game Name: ");
+    GameNode* g = games.findByName(gameName);
+    if (!g) { std::cout << "Game not found. (Tip: copy the name exactly from View Games)\n"; return; }
+
+    reviews.printReviewsForGame(gameName);
+}
+
+// ---------- View Game Details (uses ReviewList for average) ----------
+static void viewGameDetails(GameList& games, ReviewList& reviews) {
     std::cout << "\n--- Game Details ---\n";
     std::string gameName = readLine("Enter Game Name: ");
     GameNode* g = games.findByName(gameName);
@@ -390,20 +444,22 @@ static void viewGameDetails(GameList& games, RatingList& ratings) {
     printGamesHeader();
     printGameRow(g);
 
-    double avg = ratings.getAverage(gameName);
-    int count = ratings.countRatings(gameName);
-    if (avg < 0) std::cout << "Average Rating: No ratings yet\n";
+    double avg = reviews.getAverage(gameName);
+    int count = reviews.countReviews(gameName);
+    if (avg < 0) std::cout << "Average Rating: No reviews yet\n";
     else std::cout << "Average Rating: " << std::fixed << std::setprecision(2) << avg
-        << " (based on " << count << " ratings)\n";
+        << " (based on " << count << " review" << (count > 1 ? "s" : "") << ")\n";
+
+    std::cout << "\nTip: Use 'Read Reviews for a Game' to see detailed reviews.\n";
 }
 
-// ---------- Sorting helper ----------
-static double avgRatingForName(RatingList& ratings, const std::string& gameName) {
-    double avg = ratings.getAverage(gameName);
+// ---------- Sorting helper (uses ReviewList) ----------
+static double avgRatingForName(ReviewList& reviews, const std::string& gameName) {
+    double avg = reviews.getAverage(gameName);
     return (avg < 0) ? 0.0 : avg;
 }
 
-static void gamesPlayableByN(GameList& games, RatingList& ratings) {
+static void gamesPlayableByN(GameList& games, ReviewList& reviews) {
     std::cout << "\n--- Games Playable by N Players ---\n";
     int N;
     if (!readInt("Enter number of players N: ", N)) { std::cout << "Invalid N.\n"; return; }
@@ -444,8 +500,8 @@ static void gamesPlayableByN(GameList& games, RatingList& ratings) {
                     if (arr[j]->yearPublished < arr[j + 1]->yearPublished) swapNeeded = true;
                 }
                 else if (sortChoice == 3) {
-                    double a = avgRatingForName(ratings, arr[j]->gameName);
-                    double b = avgRatingForName(ratings, arr[j + 1]->gameName);
+                    double a = avgRatingForName(reviews, arr[j]->gameName);
+                    double b = avgRatingForName(reviews, arr[j + 1]->gameName);
                     if (a < b) swapNeeded = true;
                 }
 
@@ -473,10 +529,10 @@ int main() {
     MemberList members;
     TransactionQueue tx;
     RatingList ratings;
+    ReviewList reviews;  // NEW: Review list
 
     games.loadFromCSV("data/games.csv");
     members.loadFromCSV("data/members.csv");
-
 
     int choice = -1;
     while (choice != 0) {
@@ -517,8 +573,10 @@ int main() {
                     tx.printByMember(memberID);
                 }
                 else if (m == 4) memberRate(games, members, ratings);
-                else if (m == 5) viewGameDetails(games, ratings);
-                else if (m == 6) gamesPlayableByN(games, ratings);
+                else if (m == 5) memberWriteReview(games, members, reviews);  // NEW
+                else if (m == 6) memberReadReviews(games, reviews);           // NEW
+                else if (m == 7) viewGameDetails(games, reviews);             // Updated to use reviews
+                else if (m == 8) gamesPlayableByN(games, reviews);            // Updated to use reviews
                 else if (m == 0) {}
                 else std::cout << "Invalid option.\n";
             }

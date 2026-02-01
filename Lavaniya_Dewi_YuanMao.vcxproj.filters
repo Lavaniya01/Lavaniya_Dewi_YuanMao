@@ -30,6 +30,9 @@
     <ClCompile Include="RatingList.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ReviewList.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameNode.h">
@@ -57,6 +60,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReviewList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReviewNode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
