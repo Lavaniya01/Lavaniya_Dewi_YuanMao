@@ -8,7 +8,9 @@
 struct RatingNode {
     std::string memberID;
     std::string gameID;
-    int rating; // 1..10
+    int rating;           // 1..10
+    std::string date;
+
     RatingNode* next;
 
     RatingNode() : rating(0), next(nullptr) {}

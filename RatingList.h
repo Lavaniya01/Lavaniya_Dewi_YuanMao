@@ -15,11 +15,19 @@ public:
 
     void clear();
 
-    void addOrUpdate(const std::string& memberID, const std::string& gameID, int rating);
+    void addOrUpdate(const std::string& memberID,
+        const std::string& gameID,
+        int rating,
+        const std::string& date);
 
-    // returns -1 if no ratings
+    bool loadFromCSV(const std::string& filename);
+    bool appendToCSV(const std::string& filename,
+        const std::string& memberID,
+        const std::string& gameID,
+        int rating,
+        const std::string& date);
+
     double getAverage(const std::string& gameID) const;
-
     int countRatings(const std::string& gameID) const;
 };
 

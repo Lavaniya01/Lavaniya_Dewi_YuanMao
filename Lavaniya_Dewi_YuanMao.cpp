@@ -406,7 +406,17 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
     if (!readInt("Rating (1-10): ", r)) { std::cout << "Invalid rating.\n"; return; }
     if (r < 1 || r > 10) { std::cout << "Rating must be 1 to 10.\n"; return; }
 
-    ratings.addOrUpdate(memberID, gameName, r);
+    ratings.addOrUpdate(memberID,
+        g->gameId,
+        r,
+        todayDate());
+
+    ratings.appendToCSV("data/ratings.csv",
+        memberID,
+        g->gameId,
+        r,
+        todayDate());
+
     std::cout << "Rating saved.\n";
 }
 
@@ -616,6 +626,7 @@ int main() {
 
     games.loadFromCSV("data/games.csv");
     members.loadFromCSV("data/members.csv");
+    ratings.loadFromCSV("data/ratings.csv");
 
     int choice = -1;
     while (choice != 0) {
