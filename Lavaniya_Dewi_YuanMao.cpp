@@ -217,8 +217,8 @@ static void printGameRow(GameNode* g) {
         printCell(lines[i], NAME_W); std::cout << "|";
 
         if (i == 0) {
-            printCell(players, PLAYERS_W);   std::cout << "|";
             printCell(g->gameId, ID_W);      std::cout << "|";
+            printCell(players, PLAYERS_W);   std::cout << "|";
             printCell(time, TIME_W);         std::cout << "|";
             printCell(year, YEAR_W);         std::cout << "|";
             printCell(g->category, CAT_W);   std::cout << "|";
@@ -226,8 +226,8 @@ static void printGameRow(GameNode* g) {
             printCell(borrowed, BORROWED_W); std::cout << "|\n";
         }
         else {
-            printCell("", PLAYERS_W);   std::cout << "|";
             printCell("", ID_W);        std::cout << "|";
+            printCell("", PLAYERS_W);   std::cout << "|";       
             printCell("", TIME_W);      std::cout << "|";
             printCell("", YEAR_W);      std::cout << "|";
             printCell("", CAT_W);       std::cout << "|";
@@ -308,7 +308,7 @@ static void adminAddGame(GameList& games) {
     node->minPlaytime = minT;
     node->maxPlaytime = maxT;
     node->yearPublished = year;
-
+    node->category = category;
     node->status = 'A';
     node->borrowedBy = "";
 
