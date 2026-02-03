@@ -15,6 +15,7 @@
 #include "ReviewList.h"  // NEW: Review feature
 #include "Utils.h"
 #include <limits>
+#include "PlayRecordList.h"
 
 // ---------- Date helper ----------
 static std::string todayDate() {
@@ -114,6 +115,8 @@ static std::string getGameName(GameNode* g) { return g->gameName; }
 static int getYearPublished(GameNode* g) { return g->yearPublished; }
 static int getMinPlaytime(GameNode* g) { return g->minPlaytime; }
 static int getMaxPlaytime(GameNode* g) { return g->maxPlaytime; }
+PlayRecordList playRecords;
+
 
 // ---------- Menus ----------
 static void showMainMenu() {
@@ -147,6 +150,8 @@ static void showMemberMenu() {
     std::cout << "6. Read Reviews for a Game\n";        // NEW
     std::cout << "7. View Game Details (Average Rating)\n";
     std::cout << "8. Games Playable by N Players (Sort)\n";
+    std::cout << "9. Record Game Play (Players and winners)\n";
+    std::cout << "10.View my gameplay history\n";
     std::cout << "0. Back\n";
     std::cout << "Select: ";
 }
@@ -405,6 +410,62 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
     std::cout << "Rating saved.\n";
 }
 
+static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList& plays) {
+    std::cout << "\n--- Record Game Play ---\n";
+
+    std::string gameName = readLine("Enter Game Name: ");
+    GameNode* g = games.findByName(gameName);
+    if (!g) {
+        std::cout << "Game not found.\n";
+        return;
+    }
+
+    int pCount;
+    if (!readInt("How many players? ", pCount)) {
+        std::cout << "Invalid number.\n";
+        return;
+    }
+    if (pCount < 1 || pCount > MAX_PLAYERS_PER_PLAY) {
+        std::cout << "Player count must be 1 to " << MAX_PLAYERS_PER_PLAY << ".\n";
+        return;
+    }
+
+    PlayRecordNode* r = new PlayRecordNode();
+    r->gameName = gameName;
+    r->date = todayDate();
+    r->playerCount = pCount;
+
+    for (int i = 0; i < pCount; i++) {
+        std::string pid = readLine("Player " + std::to_string(i + 1) + " MemberID: ");
+        if (!members.exists(pid)) {
+            std::cout << "Member not found: " << pid << "\n";
+            delete r;
+            return;
+        }
+        r->players[i] = pid;
+    }
+
+    std::string winner = readLine("Winner MemberID (or DRAW): ");
+    if (winner != "DRAW" && !members.exists(winner)) {
+        std::cout << "Winner unknown.\n";
+        delete r;
+        return;
+    }
+    r->winnerID = winner;
+
+    // store in memory
+    plays.append(r);
+
+    // save to CSV
+    if (!plays.appendToCSV("data/plays.csv", *r)) {
+        std::cout << "WARNING: Could not append to plays.csv\n";
+    }
+    else {
+        std::cout << "Play recorded!\n";
+    }
+}
+
+
 // ---------- NEW: Review actions ----------
 static void memberWriteReview(GameList& games, MemberList& members, ReviewList& reviews) {
     std::cout << "\n--- Write a Review ---\n";
@@ -599,6 +660,13 @@ int main() {
                 else if (m == 6) memberReadReviews(games, reviews);           // NEW
                 else if (m == 7) viewGameDetails(games, reviews);             // Updated to use reviews
                 else if (m == 8) gamesPlayableByN(games, reviews);            // Updated to use reviews
+                else if (m == 9) {
+                    recordGamePlay(games, members, playRecords);
+                }
+                else if (m == 10) {
+                    std::string memberID = readLine("MemberID: ");
+                    playRecords.printByMember(memberID);
+                }
                 else if (m == 0) {}
                 else std::cout << "Invalid option.\n";
             }

@@ -130,6 +130,7 @@
     <ClCompile Include="GameList.cpp" />
     <ClCompile Include="Lavaniya_Dewi_YuanMao.cpp" />
     <ClCompile Include="MemberList.cpp" />
+    <ClCompile Include="PlayRecordList.cpp" />
     <ClCompile Include="RatingList.cpp" />
     <ClCompile Include="ReviewList.cpp" />
     <ClCompile Include="TransactionQueue.cpp" />
@@ -139,6 +140,8 @@
     <ClInclude Include="GameNode.h" />
     <ClInclude Include="MemberList.h" />
     <ClInclude Include="MemberNode.h" />
+    <ClInclude Include="PlayRecordList.h" />
+    <ClInclude Include="PlayRecordNode.h" />
     <ClInclude Include="RatingList.h" />
     <ClInclude Include="RatingNode.h" />
     <ClInclude Include="ReviewList.h" />
