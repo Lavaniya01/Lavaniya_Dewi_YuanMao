@@ -12,6 +12,7 @@
 #include "MemberNode.h"
 #include "TransactionQueue.h"
 #include "RatingList.h"
+#include "RatingNode.h"
 #include "ReviewList.h"  // NEW: Review feature
 #include "Utils.h"
 #include <limits>
@@ -152,6 +153,7 @@ static void showMemberMenu() {
     std::cout << "8. Games Playable by N Players (Sort)\n";
     std::cout << "9. Record Game Play (Players and winners)\n";
     std::cout << "10.View my gameplay history\n";
+    std::cout << "11. Recommend Games (Based on Ratings)\n";
     std::cout << "0. Back\n";
     std::cout << "Select: ";
 }
@@ -420,6 +422,141 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
     std::cout << "Rating saved.\n";
 }
 
+static GameNode* findGameByIdOrName(GameList& games, const std::string& input) {
+    GameNode* curr = games.getHead();
+    while (curr) {
+        if (curr->gameId == input || curr->gameName == input) return curr;
+        curr = curr->next;
+    }
+    return nullptr;
+}
+
+static bool memberInList(const std::string members[], int count, const std::string& id) {
+    for (int i = 0; i < count; i++) {
+        if (members[i] == id) return true;
+    }
+    return false;
+}
+
+static int findGameIndex(const std::string gameIDs[], int count, const std::string& gid) {
+    for (int i = 0; i < count; i++) {
+        if (gameIDs[i] == gid) return i;
+    }
+    return -1;
+}
+
+static void recommendGames(GameList& games, RatingList& ratings) {
+    std::cout << "\n--- Recommend Games (Based on Ratings) ---\n";
+    std::string input = readLine("Enter Game Name or Game ID: ");
+
+    GameNode* target = findGameByIdOrName(games, input);
+    if (!target) {
+        std::cout << "Game not found. Please copy Game Name / Game ID from View Games.\n";
+        return;
+    }
+
+    const int LIKE_THRESHOLD = 7;
+    const int MAX_MEMBERS = 5000;
+    const int MAX_GAMES = 5000;
+
+    std::string likedMembers[MAX_MEMBERS];
+    int likedCount = 0;
+
+    // 1) Find members who "liked" the selected game (rating >= 7)
+    RatingNode* r = ratings.getHead();
+    while (r) {
+        if (r->gameID == target->gameId && r->rating >= LIKE_THRESHOLD) {
+            if (!memberInList(likedMembers, likedCount, r->memberID) && likedCount < MAX_MEMBERS) {
+                likedMembers[likedCount++] = r->memberID;
+            }
+        }
+        r = r->next;
+    }
+
+    if (likedCount == 0) {
+        std::cout << "No recommendations found.\n";
+        std::cout << "Reason: No members rated this game >= " << LIKE_THRESHOLD << " yet.\n";
+        return;
+    }
+
+    // 2) For those members, find other games they liked, count score per gameID
+    std::string recGameIDs[MAX_GAMES];
+    int recScores[MAX_GAMES];
+    int recCount = 0;
+
+    r = ratings.getHead();
+    while (r) {
+        if (r->rating >= LIKE_THRESHOLD && memberInList(likedMembers, likedCount, r->memberID)) {
+            if (r->gameID != target->gameId) {
+                int idx = findGameIndex(recGameIDs, recCount, r->gameID);
+                if (idx == -1) {
+                    if (recCount < MAX_GAMES) {
+                        recGameIDs[recCount] = r->gameID;
+                        recScores[recCount] = 1;
+                        recCount++;
+                    }
+                }
+                else {
+                    recScores[idx]++;
+                }
+            }
+        }
+        r = r->next;
+    }
+
+    if (recCount == 0) {
+        std::cout << "No recommendations found.\n";
+        std::cout << "Reason: Similar members didn't rate other games >= " << LIKE_THRESHOLD << ".\n";
+        return;
+    }
+
+    // 3) Sort by score desc (bubble sort)
+    for (int i = 0; i < recCount - 1; i++) {
+        for (int j = 0; j < recCount - 1 - i; j++) {
+            if (recScores[j] < recScores[j + 1]) {
+                int tmpS = recScores[j];
+                recScores[j] = recScores[j + 1];
+                recScores[j + 1] = tmpS;
+
+                std::string tmpID = recGameIDs[j];
+                recGameIDs[j] = recGameIDs[j + 1];
+                recGameIDs[j + 1] = tmpID;
+            }
+        }
+    }
+
+    // 4) Print top results
+    std::cout << "\nRecommendations based on: " << target->gameName
+        << " (" << target->gameId << ") | Category: " << target->category << "\n";
+    std::cout << "Because members who rated this game >= " << LIKE_THRESHOLD
+        << " also liked these games:\n\n";
+
+    std::cout << "#  "
+        << std::left
+        << std::setw(9) << "GameID"
+        << std::setw(35) << "Game Name"
+        << std::setw(15) << "Category"
+        << "Score\n";
+    std::cout << "--------------------------------------------------------------------------\n";
+
+    int topN = 5;
+    if (recCount < topN) topN = recCount;
+
+    for (int i = 0; i < topN; i++) {
+        GameNode* g = findGameByIdOrName(games, recGameIDs[i]); // finds by ID
+        if (!g) continue;
+
+        std::cout << std::left
+            << std::setw(3) << (i + 1)
+            << std::setw(9) << g->gameId
+            << std::setw(35) << g->gameName
+            << std::setw(15) << g->category
+            << recScores[i] << "\n";
+    }
+
+    std::cout << "\nScore = number of similar members who rated that game >= " << LIKE_THRESHOLD << "\n";
+}
+
 static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList& plays) {
     std::cout << "\n--- Record Game Play ---\n";
 
@@ -678,6 +815,7 @@ int main() {
                     std::string memberID = readLine("MemberID: ");
                     playRecords.printByMember(memberID);
                 }
+                else if (m == 11) recommendGames(games, ratings);
                 else if (m == 0) {}
                 else std::cout << "Invalid option.\n";
             }

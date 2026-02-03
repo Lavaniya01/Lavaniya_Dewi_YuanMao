@@ -15,6 +15,8 @@ public:
 
     void clear();
 
+    RatingNode* getHead() const;
+
     void addOrUpdate(const std::string& memberID,
         const std::string& gameID,
         int rating,

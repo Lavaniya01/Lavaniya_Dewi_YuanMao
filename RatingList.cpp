@@ -16,14 +16,18 @@ void RatingList::clear() {
     head = nullptr;
 }
 
+RatingNode* RatingList::getHead() const {
+    return head;
+}
+
 void RatingList::addOrUpdate(const std::string& memberID,
     const std::string& gameID,
     int rating,
     const std::string& date) {
+
     RatingNode* curr = head;
     while (curr) {
-        if (curr->memberID == memberID &&
-            curr->gameID == gameID) {
+        if (curr->memberID == memberID && curr->gameID == gameID) {
             curr->rating = rating;
             curr->date = date;
             return;
@@ -55,7 +59,7 @@ double RatingList::getAverage(const std::string& gameID) const {
     }
 
     if (count == 0) return -1.0;
-    return static_cast<double>(sum) / count;
+    return static_cast<double>(sum) / static_cast<double>(count);
 }
 
 int RatingList::countRatings(const std::string& gameID) const {
@@ -92,7 +96,16 @@ bool RatingList::loadFromCSV(const std::string& filename) {
         std::getline(ss, ratingStr, ',');
         std::getline(ss, date);
 
-        int rating = std::stoi(ratingStr);
+        if (memberID.empty() || gameID.empty() || ratingStr.empty() || date.empty()) continue;
+
+        int rating = 0;
+        try {
+            rating = std::stoi(ratingStr);
+        }
+        catch (...) {
+            continue;
+        }
+
         addOrUpdate(memberID, gameID, rating, date);
     }
 
@@ -105,6 +118,7 @@ bool RatingList::appendToCSV(const std::string& filename,
     const std::string& gameID,
     int rating,
     const std::string& date) {
+
     std::ofstream out(filename, std::ios::app);
     if (!out.is_open()) return false;
 
