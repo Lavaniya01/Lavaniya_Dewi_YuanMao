@@ -41,12 +41,14 @@ static std::string statusText(char s) {
     return (s == 'A') ? "Available" : "Borrowed";
 }
 
-static void printBorder(int nameW, int playersW, int timeW, int yearW, int statusW, int borrowedW) {
+static void printBorder(int nameW, int idW, int playersW, int timeW, int yearW, int catW, int statusW, int borrowedW) {
     std::cout << "+"
         << std::string(nameW + 2, '-') << "+"
+        << std::string(idW + 2, '-') << "+"
         << std::string(playersW + 2, '-') << "+"
         << std::string(timeW + 2, '-') << "+"
         << std::string(yearW + 2, '-') << "+"
+        << std::string(catW + 2, '-') << "+"
         << std::string(statusW + 2, '-') << "+"
         << std::string(borrowedW + 2, '-') << "+\n";
 }
@@ -152,40 +154,48 @@ static void showMemberMenu() {
 // ---------- Printing games nicely (table + wrapping names) ----------
 static void printGamesHeader() {
     const int NAME_W = 38;
+    const int ID_W = 8;
     const int PLAYERS_W = 9;
     const int TIME_W = 11;
     const int YEAR_W = 6;
+    const int CAT_W = 12;
     const int STATUS_W = 10;
     const int BORROWED_W = 10;
 
-    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
+    printBorder(NAME_W, ID_W, PLAYERS_W, TIME_W, YEAR_W, CAT_W, STATUS_W, BORROWED_W);
 
     std::cout << "|";
     printCell("Game Name", NAME_W);       std::cout << "|";
+    printCell("Game ID", ID_W);           std::cout << "|";
     printCell("Players", PLAYERS_W);      std::cout << "|";
     printCell("Playtime", TIME_W);        std::cout << "|";
     printCell("Year", YEAR_W);            std::cout << "|";
+    printCell("Category", CAT_W);         std::cout << "|";
     printCell("Status", STATUS_W);        std::cout << "|";
     printCell("BorrowedBy", BORROWED_W);  std::cout << "|\n";
 
-    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
+    printBorder(NAME_W, ID_W, PLAYERS_W, TIME_W, YEAR_W, CAT_W, STATUS_W, BORROWED_W);
 }
 
 static void printGamesBottomBorder() {
     const int NAME_W = 38;
+    const int ID_W = 8;
     const int PLAYERS_W = 9;
     const int TIME_W = 11;
     const int YEAR_W = 6;
+    const int CAT_W = 12;
     const int STATUS_W = 10;
     const int BORROWED_W = 10;
-    printBorder(NAME_W, PLAYERS_W, TIME_W, YEAR_W, STATUS_W, BORROWED_W);
+    printBorder(NAME_W, ID_W, PLAYERS_W, TIME_W, YEAR_W, CAT_W, STATUS_W, BORROWED_W);
 }
 
 static void printGameRow(GameNode* g) {
     const int NAME_W = 38;
+    const int ID_W = 8;
     const int PLAYERS_W = 9;
     const int TIME_W = 11;
     const int YEAR_W = 6;
+    const int CAT_W = 12;
     const int STATUS_W = 10;
     const int BORROWED_W = 10;
 
@@ -208,15 +218,19 @@ static void printGameRow(GameNode* g) {
 
         if (i == 0) {
             printCell(players, PLAYERS_W);   std::cout << "|";
+            printCell(g->gameId, ID_W);      std::cout << "|";
             printCell(time, TIME_W);         std::cout << "|";
             printCell(year, YEAR_W);         std::cout << "|";
+            printCell(g->category, CAT_W);   std::cout << "|";
             printCell(status, STATUS_W);     std::cout << "|";
             printCell(borrowed, BORROWED_W); std::cout << "|\n";
         }
         else {
             printCell("", PLAYERS_W);   std::cout << "|";
+            printCell("", ID_W);        std::cout << "|";
             printCell("", TIME_W);      std::cout << "|";
             printCell("", YEAR_W);      std::cout << "|";
+            printCell("", CAT_W);       std::cout << "|";
             printCell("", STATUS_W);    std::cout << "|";
             printCell("", BORROWED_W);  std::cout << "|\n";
         }
@@ -269,6 +283,12 @@ static void adminAddGame(GameList& games) {
     std::string name = readLine("Game Name: ");
     if (name.empty()) { std::cout << "Game Name cannot be empty.\n"; return; }
 
+    std::string id = readLine("Game ID: ");
+    if (id.empty()) { std::cout << "Game ID cannot be empty.\n"; return; }
+
+    std::string category = readLine("Category: ");
+    if (category.empty()) category = "Unknown";
+
     int minP, maxP, minT, maxT, year;
     if (!readInt("Min Players: ", minP)) { std::cout << "Invalid.\n"; return; }
     if (!readInt("Max Players: ", maxP)) { std::cout << "Invalid.\n"; return; }
@@ -281,6 +301,8 @@ static void adminAddGame(GameList& games) {
 
     GameNode* node = new GameNode();
     node->gameName = name;
+    node->gameId = id;
+    node->category = category;
     node->minPlayers = minP;
     node->maxPlayers = maxP;
     node->minPlaytime = minT;

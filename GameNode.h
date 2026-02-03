@@ -7,6 +7,9 @@ struct GameNode {
     // CSV: name
     std::string gameName;
 
+    // CSV: gameId
+    std::string gameId;
+
     // CSV: minplayers, maxplayers
     int minPlayers;
     int maxPlayers;
@@ -17,6 +20,9 @@ struct GameNode {
 
     // CSV: yearpublished
     int yearPublished;
+
+    // CSV: category
+    std::string category;
 
     // System fields
     // 'A' = Available, 'B' = Borrowed

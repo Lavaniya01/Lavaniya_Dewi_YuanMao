@@ -167,13 +167,15 @@ bool GameList::appendGameToCSV(const std::string& filename,
     if (!out.is_open()) return false;
 
     // Match your assignment header exactly:
-    // name,minplayers,maxplayers,maxplaytime,minplaytime,yearpublished
+    // name,gameid,minplayers,maxplayers,maxplaytime,minplaytime,yearpublished,category
     out << csvEscape(g.gameName) << ","
+        << csvEscape(g.gameId) << ","
         << g.minPlayers << ","
         << g.maxPlayers << ","
         << g.maxPlaytime << ","
         << g.minPlaytime << ","
-        << g.yearPublished
+        << g.yearPublished << ","
+        << csvEscape(g.category) 
         << "\n";
 
     return true;
@@ -181,16 +183,18 @@ bool GameList::appendGameToCSV(const std::string& filename,
 
 
 void GameList::printAll(int limit) const {
-    std::cout << "Game Name\t\tPlayers\tPlaytime\tYear\tStatus\tBorrowedBy\n";
+    std::cout << "Game Name\t\tID\tPlayers\tPlaytime\tYear\tCategory\tStatus\tBorrowedBy\n";
     std::cout << "--------------------------------------------------------------------------\n";
 
     int shown = 0;
     GameNode* curr = head;
     while (curr && shown < limit) {
         std::cout << curr->gameName << "\t\t"
+            << curr->gameId << "\t"
             << curr->minPlayers << "-" << curr->maxPlayers << "\t"
             << curr->minPlaytime << "-" << curr->maxPlaytime << "\t\t"
             << curr->yearPublished << "\t"
+            << curr->category << "\t"
             << (curr->status == 'A' ? "Avail" : "Borrow") << "\t"
             << (curr->borrowedBy.empty() ? "-" : curr->borrowedBy)
             << "\n";
@@ -223,15 +227,17 @@ bool GameList::loadFromCSV(const std::string& filename) {
     int headerCount = splitCSVQuoted(headerLine, headers, MAX_COLS);
 
     int idxName = findColumnIndex(headers, headerCount, "name");
+    int idxId = findColumnIndex(headers, headerCount, "gameId");
     int idxMinP = findColumnIndex(headers, headerCount, "minplayers");
     int idxMaxP = findColumnIndex(headers, headerCount, "maxplayers");
     int idxMaxT = findColumnIndex(headers, headerCount, "maxplaytime");
     int idxMinT = findColumnIndex(headers, headerCount, "minplaytime");
     int idxYear = findColumnIndex(headers, headerCount, "yearpublished");
+    int idxCat = findColumnIndex(headers, headerCount, "category");
 
-    if (idxName < 0 || idxMinP < 0 || idxMaxP < 0 || idxMinT < 0 || idxMaxT < 0 || idxYear < 0) {
+    if (idxName < 0 || idxId < 0 || idxMinP < 0 || idxMaxP < 0 || idxMinT < 0 || idxMaxT < 0 || idxYear < 0 || idxCat < 0) {
         std::cout << "ERROR: Missing required columns. Need:\n";
-        std::cout << "name, minplayers, maxplayers, minplaytime, maxplaytime, yearpublished\n";
+        std::cout << "name,gameId, minplayers, maxplayers, minplaytime, maxplaytime, yearpublished, category\n";
         return false;
     }
 
@@ -247,16 +253,22 @@ bool GameList::loadFromCSV(const std::string& filename) {
 
         // Ensure we have enough columns for the highest index we access
         int maxIdx = idxName;
+        if (idxId > maxIdx) maxIdx = idxId;
         if (idxMinP > maxIdx) maxIdx = idxMinP;
         if (idxMaxP > maxIdx) maxIdx = idxMaxP;
         if (idxMinT > maxIdx) maxIdx = idxMinT;
         if (idxMaxT > maxIdx) maxIdx = idxMaxT;
         if (idxYear > maxIdx) maxIdx = idxYear;
+        if (idxCat > maxIdx) maxIdx = idxCat;
 
         if (colCount <= maxIdx) { skipped++; continue; }
 
+        std::string id = cols[idxId];
+        std::string cat = cols[idxCat];
         std::string name = cols[idxName];
         if (name.empty()) { skipped++; continue; }
+        if (id.empty()) { skipped++; continue; }
+        if (cat.empty()) cat = "Unknown";
 
         int minP = 0, maxP = 0, minT = 0, maxT = 0, year = 0;
         if (!toIntSafe(cols[idxMinP], minP)) { skipped++; continue; }
@@ -267,11 +279,13 @@ bool GameList::loadFromCSV(const std::string& filename) {
 
         GameNode* node = new GameNode();
         node->gameName = name;
+        node->gameId = id;
         node->minPlayers = minP;
         node->maxPlayers = maxP;
         node->minPlaytime = minT;
         node->maxPlaytime = maxT;
         node->yearPublished = year;
+        node->category = cat;
 
         node->status = 'A';
         node->borrowedBy = "";
