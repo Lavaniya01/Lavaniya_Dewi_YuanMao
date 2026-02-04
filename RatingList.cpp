@@ -113,19 +113,81 @@ bool RatingList::loadFromCSV(const std::string& filename) {
 }
 
 // ---------- CSV APPEND ----------
-bool RatingList::appendToCSV(const std::string& filename,
+bool RatingList::saveOrUpdateCSV(const std::string& filename,
     const std::string& memberID,
     const std::string& gameID,
     int rating,
     const std::string& date) {
 
-    std::ofstream out(filename, std::ios::app);
+    std::ifstream in(filename);
+    if (!in.is_open()) {
+        // file doesn't exist yet -> create and write header + row
+        std::ofstream out(filename);
+        if (!out.is_open()) return false;
+
+        out << "memberid,gameid,rating,date\n";
+        out << memberID << "," << gameID << "," << rating << "," << date << "\n";
+        return true;
+    }
+
+    const int MAX_LINES = 20000;
+    std::string lines[MAX_LINES];
+    int lineCount = 0;
+
+    std::string line;
+    bool updated = false;
+
+    // read header (keep it)
+    if (std::getline(in, line)) {
+        if (line.empty()) line = "memberid,gameid,rating,date";
+        lines[lineCount++] = line;
+    }
+    else {
+        // empty file: treat as missing header
+        lines[lineCount++] = "memberid,gameid,rating,date";
+    }
+
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+
+        std::stringstream ss(line);
+        std::string mid, gid, rStr, dStr;
+
+        std::getline(ss, mid, ',');
+        std::getline(ss, gid, ',');
+        std::getline(ss, rStr, ',');
+        std::getline(ss, dStr);
+
+        if (mid == memberID && gid == gameID) {
+            // replace this row with new rating/date
+            std::ostringstream os;
+            os << memberID << "," << gameID << "," << rating << "," << date;
+            lines[lineCount++] = os.str();
+            updated = true;
+        }
+        else {
+            lines[lineCount++] = line;
+        }
+
+        if (lineCount >= MAX_LINES) break; // safety
+    }
+    in.close();
+
+    // if not found -> append new line
+    if (!updated && lineCount < MAX_LINES) {
+        std::ostringstream os;
+        os << memberID << "," << gameID << "," << rating << "," << date;
+        lines[lineCount++] = os.str();
+    }
+
+    // rewrite full file
+    std::ofstream out(filename);
     if (!out.is_open()) return false;
 
-    out << memberID << ","
-        << gameID << ","
-        << rating << ","
-        << date << "\n";
+    for (int i = 0; i < lineCount; i++) {
+        out << lines[i] << "\n";
+    }
 
     return true;
 }
+

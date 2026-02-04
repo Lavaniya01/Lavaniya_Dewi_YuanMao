@@ -414,11 +414,13 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
         r,
         todayDate());
 
-    ratings.appendToCSV("data/ratings.csv",
+    if (!ratings.saveOrUpdateCSV("data/ratings.csv",
         memberID,
         g->gameId,
         r,
-        todayDate());
+        todayDate())) {
+        std::cout << "WARNING: Failed to save rating to CSV.\n";
+    }
 
     std::cout << "Rating saved.\n";
 }

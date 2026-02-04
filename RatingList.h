@@ -23,7 +23,7 @@ public:
         const std::string& date);
 
     bool loadFromCSV(const std::string& filename);
-    bool appendToCSV(const std::string& filename,
+    bool saveOrUpdateCSV(const std::string& filename,
         const std::string& memberID,
         const std::string& gameID,
         int rating,
