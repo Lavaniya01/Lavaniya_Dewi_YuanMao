@@ -994,6 +994,8 @@ int main() {
     games.loadFromCSV("data/games.csv");
     members.loadFromCSV("data/members.csv");
     ratings.loadFromCSV("data/ratings.csv");
+    playRecords.loadFromCSV("data/plays.csv");
+
 
     int choice = -1;
     while (choice != 0) {

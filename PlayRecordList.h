@@ -18,6 +18,8 @@ public:
     bool appendToCSV(const std::string& filename, const PlayRecordNode& r);
     void printAll() const;
     void printByMember(const std::string& memberID) const;
+    bool loadFromCSV(const std::string& filename);
+
 };
 
 #endif
