@@ -510,10 +510,41 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         return;
     }
 
-    // 3) Sort by score desc (bubble sort)
+    // Ask user how to sort
+    std::cout << "\nSort recommendations by:\n";
+    std::cout << "1. Average Rating (High to Low)\n";
+    std::cout << "2. Number of Likes (>= " << LIKE_THRESHOLD << ")\n";
+    std::cout << "Select: ";
+
+    int sortChoice;
+    if (!(std::cin >> sortChoice)) {
+        std::cin.clear();
+        clearInputLine();
+        sortChoice = 2; // default
+    }
+    clearInputLine();
+
+    if (sortChoice != 1 && sortChoice != 2) sortChoice = 2;
+
+    // 3) Sort (bubble sort)
     for (int i = 0; i < recCount - 1; i++) {
         for (int j = 0; j < recCount - 1 - i; j++) {
-            if (recScores[j] < recScores[j + 1]) {
+
+            bool swapNeeded = false;
+
+            if (sortChoice == 1) {
+                // Sort by Average Rating (desc)
+                double avgA = ratings.getAverage(recGameIDs[j]);
+                double avgB = ratings.getAverage(recGameIDs[j + 1]);
+
+                if (avgA < avgB) swapNeeded = true;
+            }
+            else {
+                // Sort by Likes count (desc)
+                if (recScores[j] < recScores[j + 1]) swapNeeded = true;
+            }
+
+            if (swapNeeded) {
                 int tmpS = recScores[j];
                 recScores[j] = recScores[j + 1];
                 recScores[j + 1] = tmpS;
@@ -525,6 +556,14 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         }
     }
 
+    int topN = 5;
+    if (recCount < topN) topN = recCount;
+
+    if (sortChoice == 1)
+        std::cout << "(Sorted by Avg Rating)\n\n";
+    else
+        std::cout << "(Sorted by Likes >= " << LIKE_THRESHOLD << ")\n\n";
+
     // 4) Print top results
     std::cout << "\nRecommendations based on: " << target->gameName
         << " (" << target->gameId << ") | Category: " << target->category << "\n";
@@ -532,25 +571,25 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         << " also liked these games:\n\n";
 
     std::cout << "#  "
-        << std::left
-        << std::setw(9) << "GameID"
-        << std::setw(35) << "Game Name"
-        << std::setw(15) << "Category"
-        << "Score\n";
-    std::cout << "--------------------------------------------------------------------------\n";
+        << std::left << std::setw(8) << "GameID"
+        << std::setw(18) << "Game Name"
+        << std::setw(12) << "Category"
+        << std::setw(11) << "AvgRating"
+        << "Likes(>=7)\n";
 
-    int topN = 5;
-    if (recCount < topN) topN = recCount;
+    std::cout << std::string(60, '-') << "\n";
 
     for (int i = 0; i < topN; i++) {
-        GameNode* g = findGameByIdOrName(games, recGameIDs[i]); // finds by ID
+        GameNode* g = findGameByIdOrName(games, recGameIDs[i]);
         if (!g) continue;
 
-        std::cout << std::left
-            << std::setw(3) << (i + 1)
-            << std::setw(9) << g->gameId
-            << std::setw(35) << g->gameName
-            << std::setw(15) << g->category
+        double avg = ratings.getAverage(g->gameId);
+
+        std::cout << (i + 1) << "  "
+            << std::left << std::setw(8) << g->gameId
+            << std::setw(18) << g->gameName
+            << std::setw(12) << g->category
+            << std::setw(11) << std::fixed << std::setprecision(1) << avg
             << recScores[i] << "\n";
     }
 
