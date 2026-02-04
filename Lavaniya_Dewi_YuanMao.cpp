@@ -511,20 +511,34 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     }
 
     // Ask user how to sort
-    std::cout << "\nSort recommendations by:\n";
-    std::cout << "1. Average Rating (High to Low)\n";
-    std::cout << "2. Number of Likes (>= " << LIKE_THRESHOLD << ")\n";
-    std::cout << "Select: ";
+    int sortChoice = -1;
 
-    int sortChoice;
-    if (!(std::cin >> sortChoice)) {
-        std::cin.clear();
+    while (true) {
+        std::cout << "\nSort recommendations by:\n";
+        std::cout << "1. Average Rating (High to Low)\n";
+        std::cout << "2. Number of Likes (>= " << LIKE_THRESHOLD << ")\n";
+        std::cout << "0. Cancel\n";
+        std::cout << "Select: ";
+
+        if (!(std::cin >> sortChoice)) {
+            std::cin.clear();
+            clearInputLine();
+            std::cout << "Please choose 0, 1, or 2.\n";
+            continue;
+        }
         clearInputLine();
-        sortChoice = 2; // default
-    }
-    clearInputLine();
 
-    if (sortChoice != 1 && sortChoice != 2) sortChoice = 2;
+        if (sortChoice == 0) {
+            std::cout << "Recommendation cancelled.\n";
+            return; // ← exit recommendGames(), back to Member Menu
+        }
+
+        if (sortChoice == 1 || sortChoice == 2) {
+            break; // valid selection
+        }
+
+        std::cout << "Please choose 1, 2, or 0.\n";
+    }
 
     // 3) Sort (bubble sort)
     for (int i = 0; i < recCount - 1; i++) {
