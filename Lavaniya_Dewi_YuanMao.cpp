@@ -445,6 +445,111 @@ static int findGameIndex(const std::string gameIDs[], int count, const std::stri
     return -1;
 }
 
+static void showSameCategoryFallback(GameList& games, RatingList& ratings, GameNode* target) {
+    std::cout << "\n--- No rating-based recommendations yet ---\n";
+    std::cout << "Showing games similar to:\n";
+    std::cout << target->gameId << " - " << target->gameName
+        << " | Category: " << target->category << "\n\n";
+
+    const int MAX = 5000;
+    const int PAGE_SIZE = 5;
+
+    GameNode* list[MAX];
+    double avg[MAX];
+    int count = 0;
+    bool hasAnyRating = false;
+
+    // 1) Collect games in same category
+    GameNode* curr = games.getHead();
+    while (curr && count < MAX) {
+        if (curr->category == target->category &&
+            curr->gameId != target->gameId) {
+
+            list[count] = curr;
+            avg[count] = ratings.getAverage(curr->gameId);
+
+            if (avg[count] >= 0) hasAnyRating = true;
+
+            count++;
+        }
+        curr = curr->next;
+    }
+
+    if (count == 0) {
+        std::cout << "No other games found in this category.\n";
+        return;
+    }
+
+    // 2) Sort
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - 1 - i; j++) {
+
+            bool swap = false;
+
+            if (hasAnyRating) {
+                // Sort by Avg Rating DESC
+                double a = avg[j];
+                double b = avg[j + 1];
+
+                if (a < 0) a = -1;
+                if (b < 0) b = -1;
+
+                if (a < b) swap = true;
+            }
+            else {
+                // Sort alphabetically by Game Name
+                if (list[j]->gameName > list[j + 1]->gameName)
+                    swap = true;
+            }
+
+            if (swap) {
+                GameNode* tg = list[j];
+                list[j] = list[j + 1];
+                list[j + 1] = tg;
+
+                double ta = avg[j];
+                avg[j] = avg[j + 1];
+                avg[j + 1] = ta;
+            }
+        }
+    }
+
+    // 3) Print header
+    std::cout << std::left
+        << std::setw(8) << "GameID"
+        << std::setw(30) << "Game Name"
+        << std::setw(15) << "Category"
+        << "Avg Rating\n";
+    std::cout << std::string(65, '-') << "\n";
+
+    // 4) Paginated output
+    for (int i = 0; i < count; i++) {
+
+        std::cout << std::left
+            << std::setw(8) << list[i]->gameId
+            << std::setw(30) << list[i]->gameName
+            << std::setw(15) << list[i]->category;
+
+        if (avg[i] < 0)
+            std::cout << "-\n";
+        else
+            std::cout << std::fixed << std::setprecision(1) << avg[i] << "\n";
+
+        // Pause every 5
+        if ((i + 1) % PAGE_SIZE == 0 && i + 1 < count) {
+            std::string input = readLine("\nENTER for more, or 0 to go back: ");
+            if (input == "0") {
+                std::cout << "Back to Member Menu.\n";
+                return;
+            }
+            std::cout << "\n";
+        }
+    }
+
+    std::cout << "\nEnd of list.\n";
+    readLine("Type 0 to go back: ");
+}
+
 static void recommendGames(GameList& games, RatingList& ratings) {
     std::cout << "\n--- Recommend Games (Based on Ratings) ---\n";
     std::string input = readLine("Enter Game Name or Game ID: ");
@@ -474,8 +579,7 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     }
 
     if (likedCount == 0) {
-        std::cout << "No recommendations found.\n";
-        std::cout << "Reason: No members rated this game >= " << LIKE_THRESHOLD << " yet.\n";
+        showSameCategoryFallback(games, ratings, target);
         return;
     }
 
