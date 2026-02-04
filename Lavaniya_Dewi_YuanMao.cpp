@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <ctime>
 #include <string>
+#include <sstream>
 
 #include "GameList.h"
 #include "MemberList.h"
@@ -445,21 +446,25 @@ static int findGameIndex(const std::string gameIDs[], int count, const std::stri
     return -1;
 }
 
-static void showSameCategoryFallback(GameList& games, RatingList& ratings, GameNode* target) {
-    std::cout << "\n--- No rating-based recommendations yet ---\n";
-    std::cout << "Showing games similar to:\n";
-    std::cout << target->gameId << " - " << target->gameName
-        << " | Category: " << target->category << "\n\n";
+static void showSameCategoryFallback(GameList& games,
+    RatingList& ratings,
+    GameNode* target) {
 
     const int MAX = 5000;
     const int PAGE_SIZE = 5;
+
+    // column widths
+    const int ID_W = 8;
+    const int NAME_W = 32;
+    const int CAT_W = 14;
+    const int AVG_W = 10;
 
     GameNode* list[MAX];
     double avg[MAX];
     int count = 0;
     bool hasAnyRating = false;
 
-    // 1) Collect games in same category
+    // ---------- Collect same-category games ----------
     GameNode* curr = games.getHead();
     while (curr && count < MAX) {
         if (curr->category == target->category &&
@@ -469,37 +474,35 @@ static void showSameCategoryFallback(GameList& games, RatingList& ratings, GameN
             avg[count] = ratings.getAverage(curr->gameId);
 
             if (avg[count] >= 0) hasAnyRating = true;
-
             count++;
         }
         curr = curr->next;
     }
+
+    std::cout << "\n--- No rating-based recommendations yet ---\n";
+    std::cout << "Showing games similar to:\n";
+    std::cout << target->gameId << " - " << target->gameName
+        << " | Category: " << target->category << "\n\n";
 
     if (count == 0) {
         std::cout << "No other games found in this category.\n";
         return;
     }
 
-    // 2) Sort
+    // ---------- Sort ----------
     for (int i = 0; i < count - 1; i++) {
         for (int j = 0; j < count - 1 - i; j++) {
 
             bool swap = false;
 
             if (hasAnyRating) {
-                // Sort by Avg Rating DESC
-                double a = avg[j];
-                double b = avg[j + 1];
-
-                if (a < 0) a = -1;
-                if (b < 0) b = -1;
-
-                if (a < b) swap = true;
+                double a = avg[j] < 0 ? -1 : avg[j];
+                double b = avg[j + 1] < 0 ? -1 : avg[j + 1];
+                if (a < b) swap = true;   // rating DESC
             }
             else {
-                // Sort alphabetically by Game Name
                 if (list[j]->gameName > list[j + 1]->gameName)
-                    swap = true;
+                    swap = true;        // alphabetical
             }
 
             if (swap) {
@@ -514,40 +517,68 @@ static void showSameCategoryFallback(GameList& games, RatingList& ratings, GameN
         }
     }
 
-    // 3) Print header
-    std::cout << std::left
-        << std::setw(8) << "GameID"
-        << std::setw(30) << "Game Name"
-        << std::setw(15) << "Category"
-        << "Avg Rating\n";
-    std::cout << std::string(65, '-') << "\n";
+    // ---------- Table helpers ----------
+    auto printBorder = [&]() {
+        std::cout << "+"
+            << std::string(ID_W + 2, '-') << "+"
+            << std::string(NAME_W + 2, '-') << "+"
+            << std::string(CAT_W + 2, '-') << "+"
+            << std::string(AVG_W + 2, '-') << "+\n";
+        };
 
-    // 4) Paginated output
+    auto printCell = [&](const std::string& s, int w) {
+        std::cout << " " << std::left << std::setw(w) << s << " ";
+        };
+
+    auto printHeader = [&]() {
+        printBorder();
+        std::cout << "|";
+        printCell("Game ID", ID_W);     std::cout << "|";
+        printCell("Game Name", NAME_W); std::cout << "|";
+        printCell("Category", CAT_W);   std::cout << "|";
+        printCell("Avg Rating", AVG_W); std::cout << "|\n";
+        printBorder();
+        };
+
+    // ---------- Print header ----------
+    printBorder();
+    std::cout << "|";
+    printCell("Game ID", ID_W);     std::cout << "|";
+    printCell("Game Name", NAME_W); std::cout << "|";
+    printCell("Category", CAT_W);   std::cout << "|";
+    printCell("Avg Rating", AVG_W); std::cout << "|\n";
+    printBorder();
+
+    // ---------- Paginated rows ----------
     for (int i = 0; i < count; i++) {
-
-        std::cout << std::left
-            << std::setw(8) << list[i]->gameId
-            << std::setw(30) << list[i]->gameName
-            << std::setw(15) << list[i]->category;
+        std::cout << "|";
+        printCell(list[i]->gameId, ID_W);     std::cout << "|";
+        printCell(list[i]->gameName, NAME_W); std::cout << "|";
+        printCell(list[i]->category, CAT_W);  std::cout << "|";
 
         if (avg[i] < 0)
-            std::cout << "-\n";
-        else
-            std::cout << std::fixed << std::setprecision(1) << avg[i] << "\n";
+            printCell("-", AVG_W);
+        else {
+            std::ostringstream os;
+            os << std::fixed << std::setprecision(1) << avg[i];
+            printCell(os.str(), AVG_W);
+        }
+        std::cout << "|\n";
 
-        // Pause every 5
+        printBorder();
+
+        // pause every 5 rows
         if ((i + 1) % PAGE_SIZE == 0 && i + 1 < count) {
-            std::string input = readLine("\nENTER for more, or 0 to go back: ");
-            if (input == "0") {
-                std::cout << "Back to Member Menu.\n";
-                return;
-            }
-            std::cout << "\n";
+            std::string input = readLine("ENTER for more, or 0 to go back: ");
+            if (input == "0") return;
+
+            // reprint header so borders stay consistent
+            printHeader();
         }
     }
 
-    std::cout << "\nEnd of list.\n";
-    readLine("Type 0 to go back: ");
+    // last prompt
+    readLine("Press ENTER to return (or type 0): ");
 }
 
 static void recommendGames(GameList& games, RatingList& ratings) {
