@@ -713,36 +713,76 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     else
         std::cout << "(Sorted by Likes >= " << LIKE_THRESHOLD << ")\n\n";
 
-    // 4) Print top results
+    // 4) Print top results (TABLE STYLE)
     std::cout << "\nRecommendations based on: " << target->gameName
         << " (" << target->gameId << ") | Category: " << target->category << "\n";
     std::cout << "Because members who rated this game >= " << LIKE_THRESHOLD
         << " also liked these games:\n\n";
 
-    std::cout << "#  "
-        << std::left << std::setw(8) << "GameID"
-        << std::setw(18) << "Game Name"
-        << std::setw(12) << "Category"
-        << std::setw(11) << "AvgRating"
-        << "Likes(>=7)\n";
+    // widths
+    const int IDX_W = 4;
+    const int ID_W = 8;
+    const int NAME_W = 20;
+    const int CAT_W = 12;
+    const int AVG_W = 9;
+    const int LIKE_W = 11;
 
-    std::cout << std::string(60, '-') << "\n";
+    auto printBorder = [&]() {
+        std::cout << "+"
+            << std::string(IDX_W + 2, '-') << "+"
+            << std::string(ID_W + 2, '-') << "+"
+            << std::string(NAME_W + 2, '-') << "+"
+            << std::string(CAT_W + 2, '-') << "+"
+            << std::string(AVG_W + 2, '-') << "+"
+            << std::string(LIKE_W + 2, '-') << "+\n";
+        };
 
+    auto printCell = [&](const std::string& s, int w) {
+        std::cout << " " << std::left << std::setw(w) << s << " ";
+        };
+
+    // header
+    printBorder();
+    std::cout << "|";
+    printCell("#", IDX_W);             std::cout << "|";
+    printCell("GameID", ID_W);         std::cout << "|";
+    printCell("Game Name", NAME_W);    std::cout << "|";
+    printCell("Category", CAT_W);      std::cout << "|";
+    printCell("AvgRating", AVG_W);     std::cout << "|";
+    printCell("Likes(>=7)", LIKE_W);   std::cout << "|\n";
+    printBorder();
+
+    // rows
     for (int i = 0; i < topN; i++) {
         GameNode* g = findGameByIdOrName(games, recGameIDs[i]);
         if (!g) continue;
 
         double avg = ratings.getAverage(g->gameId);
 
-        std::cout << (i + 1) << "  "
-            << std::left << std::setw(8) << g->gameId
-            << std::setw(18) << g->gameName
-            << std::setw(12) << g->category
-            << std::setw(11) << std::fixed << std::setprecision(1) << avg
-            << recScores[i] << "\n";
+        std::cout << "|";
+        printCell(std::to_string(i + 1), IDX_W); std::cout << "|";
+        printCell(g->gameId, ID_W);              std::cout << "|";
+        printCell(g->gameName, NAME_W);          std::cout << "|";
+        printCell(g->category, CAT_W);           std::cout << "|";
+
+        if (avg < 0) {
+            printCell("-", AVG_W);
+        }
+        else {
+            std::ostringstream os;
+            os << std::fixed << std::setprecision(1) << avg;
+            printCell(os.str(), AVG_W);
+        }
+        std::cout << "|";
+
+        printCell(std::to_string(recScores[i]), LIKE_W);
+        std::cout << "|\n";
+
+        printBorder();
     }
 
-    std::cout << "\nScore = number of similar members who rated that game >= " << LIKE_THRESHOLD << "\n";
+    std::cout << "\nScore = number of similar members who rated that game >= "
+        << LIKE_THRESHOLD << "\n";
 }
 
 static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList& plays) {
