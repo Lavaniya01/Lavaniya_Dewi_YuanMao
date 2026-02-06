@@ -338,20 +338,26 @@ static void adminAddMember(MemberList& members) {
     std::string id = readLine("MemberID: ");
     if (id.empty()) { std::cout << "MemberID cannot be empty.\n"; return; }
 
-    // CHANGED: exists -> existsCaseInsensitive
+    // ADD THIS: Convert ID to uppercase
+    for (size_t i = 0; i < id.size(); i++) {
+        id[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(id[i])));
+    }
+
+    // Check if exists (case-insensitive)
     if (members.existsCaseInsensitive(id)) { std::cout << "MemberID already exists.\n"; return; }
 
     std::string name = readLine("Name: ");
 
     MemberNode* m = new MemberNode();
-    m->memberID = id;
+    m->memberID = id;  // Now uppercase
     m->name = name;
     members.append(m);
+
     if (!members.appendMemberToCSV("data/members.csv", id, name)) {
         std::cout << "WARNING: Member saved in memory but failed to write to CSV.\n";
     }
 
-    std::cout << "Member added.\n";
+    std::cout << "Member added: " << id << "\n";  // Shows uppercase ID
 }
 
 // ---------- Member actions ----------
