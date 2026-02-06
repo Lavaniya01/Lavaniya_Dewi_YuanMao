@@ -46,7 +46,6 @@ static int findColumnIndex(const std::string headers[], int headerCount, const s
     return -1;
 }
 
-
 static int splitCSVQuoted(const std::string& line, std::string out[], int maxOut) {
     std::string field;
     bool inQuotes = false;
@@ -78,7 +77,28 @@ static int splitCSVQuoted(const std::string& line, std::string out[], int maxOut
     return count;
 }
 
-// ---------- GameList ----------
+// Quote a CSV field if needed (handles commas and quotes)
+static std::string csvEscape(const std::string& s) {
+    bool needsQuotes = false;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == ',' || s[i] == '"' || s[i] == '\n' || s[i] == '\r') {
+            needsQuotes = true;
+            break;
+        }
+    }
+    if (!needsQuotes) return s;
+
+    std::string out = "\"";
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == '"') out += "\"\"";
+        else out += s[i];
+    }
+    out += "\"";
+    return out;
+}
+
+// ---------- GameList Implementation ----------
+
 GameList::GameList() : head(nullptr) {}
 
 GameList::~GameList() {
@@ -113,10 +133,27 @@ void GameList::append(GameNode* node) {
     curr->next = node;
 }
 
+// Case-SENSITIVE search (exact match)
 GameNode* GameList::findByName(const std::string& gameName) {
     GameNode* curr = head;
     while (curr) {
         if (curr->gameName == gameName) return curr;
+        curr = curr->next;
+    }
+    return nullptr;
+}
+
+// Case-INSENSITIVE search (flexible match)
+// "catan" will find "Catan", "CATAN", etc.
+GameNode* GameList::findByNameCaseInsensitive(const std::string& gameName) {
+    std::string searchLower = toLower(gameName);
+
+    GameNode* curr = head;
+    while (curr) {
+        std::string currNameLower = toLower(curr->gameName);
+        if (currNameLower == searchLower) {
+            return curr;
+        }
         curr = curr->next;
     }
     return nullptr;
@@ -139,35 +176,10 @@ bool GameList::removeByName(const std::string& gameName) {
     return false;
 }
 
-#include <fstream>
-
-// Quote a CSV field if needed (handles commas and quotes)
-static std::string csvEscape(const std::string& s) {
-    bool needsQuotes = false;
-    for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == ',' || s[i] == '"' || s[i] == '\n' || s[i] == '\r') {
-            needsQuotes = true;
-            break;
-        }
-    }
-    if (!needsQuotes) return s;
-
-    std::string out = "\"";
-    for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == '"') out += "\"\""; // escape " as ""
-        else out += s[i];
-    }
-    out += "\"";
-    return out;
-}
-
-bool GameList::appendGameToCSV(const std::string& filename,
-    const GameNode& g) {
+bool GameList::appendGameToCSV(const std::string& filename, const GameNode& g) {
     std::ofstream out(filename, std::ios::app);
     if (!out.is_open()) return false;
 
-    // Match your assignment header exactly:
-    // name,gameid,minplayers,maxplayers,maxplaytime,minplaytime,yearpublished,category
     out << csvEscape(g.gameName) << ","
         << csvEscape(g.gameId) << ","
         << g.minPlayers << ","
@@ -175,12 +187,11 @@ bool GameList::appendGameToCSV(const std::string& filename,
         << g.maxPlaytime << ","
         << g.minPlaytime << ","
         << g.yearPublished << ","
-        << csvEscape(g.category) 
+        << csvEscape(g.category)
         << "\n";
 
     return true;
 }
-
 
 void GameList::printAll(int limit) const {
     std::cout << "Game Name\t\tID\tPlayers\tPlaytime\tYear\tCategory\tStatus\tBorrowedBy\n";
@@ -215,7 +226,6 @@ bool GameList::loadFromCSV(const std::string& filename) {
 
     clear();
 
-    // Read header row
     std::string headerLine;
     if (!std::getline(file, headerLine)) {
         std::cout << "ERROR: CSV is empty.\n";
@@ -235,14 +245,15 @@ bool GameList::loadFromCSV(const std::string& filename) {
     int idxYear = findColumnIndex(headers, headerCount, "yearpublished");
     int idxCat = findColumnIndex(headers, headerCount, "category");
 
-    if (idxName < 0 || idxId < 0 || idxMinP < 0 || idxMaxP < 0 || idxMinT < 0 || idxMaxT < 0 || idxYear < 0 || idxCat < 0) {
+    if (idxName < 0 || idxId < 0 || idxMinP < 0 || idxMaxP < 0 ||
+        idxMinT < 0 || idxMaxT < 0 || idxYear < 0 || idxCat < 0) {
         std::cout << "ERROR: Missing required columns. Need:\n";
-        std::cout << "name,gameId, minplayers, maxplayers, minplaytime, maxplaytime, yearpublished, category\n";
+        std::cout << "name, gameId, minplayers, maxplayers, minplaytime, maxplaytime, yearpublished, category\n";
         return false;
     }
 
     std::string line;
-    int loaded = 0; 
+    int loaded = 0;
     int skipped = 0;
 
     while (std::getline(file, line)) {
@@ -251,7 +262,6 @@ bool GameList::loadFromCSV(const std::string& filename) {
         std::string cols[MAX_COLS];
         int colCount = splitCSVQuoted(line, cols, MAX_COLS);
 
-        // Ensure we have enough columns for the highest index we access
         int maxIdx = idxName;
         if (idxId > maxIdx) maxIdx = idxId;
         if (idxMinP > maxIdx) maxIdx = idxMinP;
@@ -286,7 +296,6 @@ bool GameList::loadFromCSV(const std::string& filename) {
         node->maxPlaytime = maxT;
         node->yearPublished = year;
         node->category = cat;
-
         node->status = 'A';
         node->borrowedBy = "";
 

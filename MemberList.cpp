@@ -2,6 +2,18 @@
 #include "MemberNode.h"   
 #include <fstream>
 #include <iostream>
+#include <cctype>
+
+// ---------- Helper Function ----------
+static std::string toLower(const std::string& s) {
+    std::string out = s;
+    for (size_t i = 0; i < out.size(); i++) {
+        out[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(out[i])));
+    }
+    return out;
+}
+
+// ---------- MemberList Implementation ----------
 
 bool MemberList::appendMemberToCSV(const std::string& filename,
     const std::string& memberID,
@@ -13,7 +25,6 @@ bool MemberList::appendMemberToCSV(const std::string& filename,
     out << memberID << "," << name << "\n";
     return true;
 }
-
 
 MemberList::MemberList() : head(nullptr) {}
 
@@ -48,10 +59,27 @@ void MemberList::append(MemberNode* node) {
     curr->next = node;
 }
 
+// Case-SENSITIVE search (exact match)
 MemberNode* MemberList::findByID(const std::string& memberID) {
     MemberNode* curr = head;
     while (curr != nullptr) {
         if (curr->memberID == memberID) {
+            return curr;
+        }
+        curr = curr->next;
+    }
+    return nullptr;
+}
+
+// NEW: Case-INSENSITIVE search (flexible match)
+// "m001" will match "M001", "M001" will match "m001"
+MemberNode* MemberList::findByIDCaseInsensitive(const std::string& memberID) {
+    std::string searchLower = toLower(memberID);
+
+    MemberNode* curr = head;
+    while (curr != nullptr) {
+        std::string currIdLower = toLower(curr->memberID);
+        if (currIdLower == searchLower) {
             return curr;
         }
         curr = curr->next;
@@ -99,8 +127,8 @@ bool MemberList::loadFromCSV(const std::string& filename) {
             continue;
         }
 
-        // Avoid duplicate members
-        if (exists(id)) {
+        // Avoid duplicate members (case-insensitive check)
+        if (existsCaseInsensitive(id)) {
             skipped++;
             continue;
         }
@@ -120,10 +148,26 @@ bool MemberList::loadFromCSV(const std::string& filename) {
     return true;
 }
 
+// Case-SENSITIVE exists check
 bool MemberList::exists(const std::string& memberID) const {
     MemberNode* curr = head;
     while (curr != nullptr) {
         if (curr->memberID == memberID) {
+            return true;
+        }
+        curr = curr->next;
+    }
+    return false;
+}
+
+// NEW: Case-INSENSITIVE exists check
+bool MemberList::existsCaseInsensitive(const std::string& memberID) const {
+    std::string searchLower = toLower(memberID);
+
+    MemberNode* curr = head;
+    while (curr != nullptr) {
+        std::string currIdLower = toLower(curr->memberID);
+        if (currIdLower == searchLower) {
             return true;
         }
         curr = curr->next;

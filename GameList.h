@@ -1,4 +1,4 @@
-#ifndef GAMELIST_H
+﻿#ifndef GAMELIST_H
 #define GAMELIST_H
 
 #include "GameNode.h"
@@ -17,15 +17,18 @@ public:
 
     void append(GameNode* node);
 
-    // Find/remove by Game Name (because CSV has no numeric ID)
+    // Case-sensitive search
     GameNode* findByName(const std::string& gameName);
+
+    // Case-insensitive search - THIS MUST BE HERE!
+    GameNode* findByNameCaseInsensitive(const std::string& gameName);
+
     bool removeByName(const std::string& gameName);
 
-    void printAll(int limit = 30) const; // nicer: limit output
+    void printAll(int limit = 30) const;
 
     bool loadFromCSV(const std::string& filename);
     bool appendGameToCSV(const std::string& filename, const GameNode& g);
-
 
     void printGameSummary() const;
 };

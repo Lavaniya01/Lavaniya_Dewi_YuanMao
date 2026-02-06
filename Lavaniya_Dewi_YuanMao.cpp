@@ -14,7 +14,7 @@
 #include "TransactionQueue.h"
 #include "RatingList.h"
 #include "RatingNode.h"
-#include "ReviewList.h"  // NEW: Review feature
+#include "ReviewList.h"
 #include "Utils.h"
 #include <limits>
 #include "PlayRecordList.h"
@@ -60,13 +60,6 @@ static void printCell(const std::string& s, int width) {
     std::cout << " " << std::left << std::setw(width) << s << " ";
 }
 
-/*
-NO-STL word wrap:
-- Splits 'text' into up to maxLines lines
-- Each line is at most 'width' characters
-- Prefer breaking at spaces
-- Stores results into outLines[0..lineCount-1]
-*/
 static void wrapTextNoSTL(const std::string& text, int width,
     std::string outLines[], int maxLines, int& lineCount) {
     lineCount = 0;
@@ -79,7 +72,6 @@ static void wrapTextNoSTL(const std::string& text, int width,
         int end = start + width;
         if (end > n) end = n;
 
-        // Try to break at last space within the line
         int breakPos = -1;
         for (int i = end - 1; i > start; i--) {
             if (text[i] == ' ') { breakPos = i; break; }
@@ -87,18 +79,16 @@ static void wrapTextNoSTL(const std::string& text, int width,
 
         if (breakPos != -1) {
             outLines[lineCount++] = text.substr(start, breakPos - start);
-            start = breakPos + 1; // skip the space
+            start = breakPos + 1;
         }
         else {
             outLines[lineCount++] = text.substr(start, end - start);
             start = end;
         }
 
-        // Skip extra spaces
         while (start < n && text[start] == ' ') start++;
     }
 
-    // If text remains but we hit maxLines, mark the last line with "..."
     if (start < n && lineCount > 0) {
         std::string& last = outLines[lineCount - 1];
         if (last.size() >= 3) {
@@ -148,8 +138,8 @@ static void showMemberMenu() {
     std::cout << "2. Return a Game\n";
     std::cout << "3. My Borrow/Return Summary\n";
     std::cout << "4. Rate a Game (1-10)\n";
-    std::cout << "5. Write a Review for a Game\n";      // NEW
-    std::cout << "6. Read Reviews for a Game\n";        // NEW
+    std::cout << "5. Write a Review for a Game\n";
+    std::cout << "6. Read Reviews for a Game\n";
     std::cout << "7. View Game Details (Average Rating)\n";
     std::cout << "8. Games Playable by N Players (Sort)\n";
     std::cout << "9. Record Game Play (Players and winners)\n";
@@ -159,7 +149,7 @@ static void showMemberMenu() {
     std::cout << "Select: ";
 }
 
-// ---------- Printing games nicely (table + wrapping names) ----------
+// ---------- Printing games nicely ----------
 static void printGamesHeader() {
     const int NAME_W = 38;
     const int ID_W = 8;
@@ -235,7 +225,7 @@ static void printGameRow(GameNode* g) {
         }
         else {
             printCell("", ID_W);        std::cout << "|";
-            printCell("", PLAYERS_W);   std::cout << "|";       
+            printCell("", PLAYERS_W);   std::cout << "|";
             printCell("", TIME_W);      std::cout << "|";
             printCell("", YEAR_W);      std::cout << "|";
             printCell("", CAT_W);       std::cout << "|";
@@ -263,7 +253,6 @@ static void viewGamesAll(GameList& games) {
     while (curr) {
         int printedThisPage = 0;
 
-        // Print up to PAGE_SIZE games
         while (curr && printedThisPage < PAGE_SIZE) {
             printGameRow(curr);
             curr = curr->next;
@@ -273,7 +262,6 @@ static void viewGamesAll(GameList& games) {
 
         pageCount++;
 
-        // If more games remain, pause
         if (curr) {
             std::cout << "---- Showing " << shown
                 << " games so far. Press ENTER to load more ----";
@@ -282,7 +270,7 @@ static void viewGamesAll(GameList& games) {
     }
 
     std::cout << "\nEnd of list. Total games shown: " << shown << "\n";
-    std::cout << "Tip: Copy the Game Name exactly when borrowing/returning/rating/reviewing.\n";
+    std::cout << "Tip: Game names are now case-insensitive! (e.g., 'catan' will find 'Catan')\n";
 }
 
 // ---------- Admin actions ----------
@@ -328,24 +316,30 @@ static void adminAddGame(GameList& games) {
     std::cout << "Game copy added.\n";
 }
 
+// UPDATED: Case-insensitive game search
 static void adminRemoveGame(GameList& games) {
     std::cout << "\n--- Remove Game Copy ---\n";
     std::string name = readLine("Enter Game Name to remove: ");
     if (name.empty()) { std::cout << "Game Name cannot be empty.\n"; return; }
 
-    GameNode* g = games.findByName(name);
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(name);
     if (!g) { std::cout << "Not found.\n"; return; }
     if (g->status == 'B') { std::cout << "Cannot remove: this copy is currently borrowed.\n"; return; }
 
-    if (games.removeByName(name)) std::cout << "Removed.\n";
+    // Use actual game name from database for removal
+    if (games.removeByName(g->gameName)) std::cout << "Removed.\n";
     else std::cout << "Remove failed.\n";
 }
 
+// UPDATED: Case-insensitive member check
 static void adminAddMember(MemberList& members) {
     std::cout << "\n--- Add Member ---\n";
     std::string id = readLine("MemberID: ");
     if (id.empty()) { std::cout << "MemberID cannot be empty.\n"; return; }
-    if (members.exists(id)) { std::cout << "MemberID already exists.\n"; return; }
+
+    // CHANGED: exists -> existsCaseInsensitive
+    if (members.existsCaseInsensitive(id)) { std::cout << "MemberID already exists.\n"; return; }
 
     std::string name = readLine("Name: ");
 
@@ -361,61 +355,98 @@ static void adminAddMember(MemberList& members) {
 }
 
 // ---------- Member actions ----------
+
+// UPDATED: Case-insensitive for both member and game
 static void memberBorrow(GameList& games, MemberList& members, TransactionQueue& tx) {
     std::cout << "\n--- Borrow a Game ---\n";
     std::string memberID = readLine("MemberID: ");
-    if (!members.exists(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // CHANGED: exists -> existsCaseInsensitive
+    if (!members.existsCaseInsensitive(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // Get actual member to store correct ID
+    MemberNode* member = members.findByIDCaseInsensitive(memberID);
 
     std::string gameName = readLine("Game Name: ");
-    GameNode* g = games.findByName(gameName);
-    if (!g) { std::cout << "Game not found. (Tip: copy the name exactly from View Games)\n"; return; }
+
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
+    if (!g) { std::cout << "Game not found.\n"; return; }
     if (g->status == 'B') { std::cout << "Already borrowed.\n"; return; }
 
     g->status = 'B';
-    g->borrowedBy = memberID;
+    g->borrowedBy = member->memberID;  // Use actual memberID from database
 
-    tx.enqueue(memberID, gameName, gameName, "BORROW", todayDate());
+    tx.enqueue(member->memberID, g->gameName, g->gameName, "BORROW", todayDate());
     std::cout << "Borrow successful.\n";
 }
 
+// UPDATED: Case-insensitive for both member and game
 static void memberReturn(GameList& games, MemberList& members, TransactionQueue& tx) {
     std::cout << "\n--- Return a Game ---\n";
     std::string memberID = readLine("MemberID: ");
-    if (!members.exists(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // CHANGED: exists -> existsCaseInsensitive
+    if (!members.existsCaseInsensitive(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // Get actual member
+    MemberNode* member = members.findByIDCaseInsensitive(memberID);
 
     std::string gameName = readLine("Game Name: ");
-    GameNode* g = games.findByName(gameName);
+
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
     if (!g) { std::cout << "Game not found.\n"; return; }
     if (g->status == 'A') { std::cout << "This copy is not borrowed.\n"; return; }
-    if (g->borrowedBy != memberID) { std::cout << "Return denied: not borrowed by you.\n"; return; }
+
+    // CHANGED: Case-insensitive comparison for borrowedBy check
+    std::string borrowedByLower = g->borrowedBy;
+    std::string memberIdLower = member->memberID;
+    for (size_t i = 0; i < borrowedByLower.size(); i++)
+        borrowedByLower[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(borrowedByLower[i])));
+    for (size_t i = 0; i < memberIdLower.size(); i++)
+        memberIdLower[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(memberIdLower[i])));
+
+    if (borrowedByLower != memberIdLower) {
+        std::cout << "Return denied: not borrowed by you.\n";
+        return;
+    }
 
     g->status = 'A';
     g->borrowedBy = "";
 
-    tx.enqueue(memberID, gameName, gameName, "RETURN", todayDate());
+    tx.enqueue(member->memberID, g->gameName, g->gameName, "RETURN", todayDate());
     std::cout << "Return successful.\n";
 }
 
+// UPDATED: Case-insensitive for both member and game
 static void memberRate(GameList& games, MemberList& members, RatingList& ratings) {
     std::cout << "\n--- Rate a Game (1-10) ---\n";
     std::string memberID = readLine("MemberID: ");
-    if (!members.exists(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // CHANGED: exists -> existsCaseInsensitive
+    if (!members.existsCaseInsensitive(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // Get actual member
+    MemberNode* member = members.findByIDCaseInsensitive(memberID);
 
     std::string gameName = readLine("Game Name: ");
-    GameNode* g = games.findByName(gameName);
+
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
     if (!g) { std::cout << "Game not found.\n"; return; }
 
     int r;
     if (!readInt("Rating (1-10): ", r)) { std::cout << "Invalid rating.\n"; return; }
     if (r < 1 || r > 10) { std::cout << "Rating must be 1 to 10.\n"; return; }
 
-    ratings.addOrUpdate(memberID,
+    ratings.addOrUpdate(member->memberID,
         g->gameId,
         r,
         todayDate());
 
     if (!ratings.saveOrUpdateCSV("data/ratings.csv",
-        memberID,
+        member->memberID,
         g->gameId,
         r,
         todayDate())) {
@@ -425,13 +456,18 @@ static void memberRate(GameList& games, MemberList& members, RatingList& ratings
     std::cout << "Rating saved.\n";
 }
 
+// UPDATED: Case-insensitive game search
 static GameNode* findGameByIdOrName(GameList& games, const std::string& input) {
     GameNode* curr = games.getHead();
+
+    // First try exact match on ID
     while (curr) {
-        if (curr->gameId == input || curr->gameName == input) return curr;
+        if (curr->gameId == input) return curr;
         curr = curr->next;
     }
-    return nullptr;
+
+    // Then try case-insensitive match on name
+    return games.findByNameCaseInsensitive(input);
 }
 
 static bool memberInList(const std::string members[], int count, const std::string& id) {
@@ -455,7 +491,6 @@ static void showSameCategoryFallback(GameList& games,
     const int MAX = 5000;
     const int PAGE_SIZE = 5;
 
-    // column widths
     const int ID_W = 8;
     const int NAME_W = 32;
     const int CAT_W = 14;
@@ -466,7 +501,6 @@ static void showSameCategoryFallback(GameList& games,
     int count = 0;
     bool hasAnyRating = false;
 
-    // ---------- Collect same-category games ----------
     GameNode* curr = games.getHead();
     while (curr && count < MAX) {
         if (curr->category == target->category &&
@@ -491,7 +525,6 @@ static void showSameCategoryFallback(GameList& games,
         return;
     }
 
-    // ---------- Sort ----------
     for (int i = 0; i < count - 1; i++) {
         for (int j = 0; j < count - 1 - i; j++) {
 
@@ -500,11 +533,11 @@ static void showSameCategoryFallback(GameList& games,
             if (hasAnyRating) {
                 double a = avg[j] < 0 ? -1 : avg[j];
                 double b = avg[j + 1] < 0 ? -1 : avg[j + 1];
-                if (a < b) swap = true;   // rating DESC
+                if (a < b) swap = true;
             }
             else {
                 if (list[j]->gameName > list[j + 1]->gameName)
-                    swap = true;        // alphabetical
+                    swap = true;
             }
 
             if (swap) {
@@ -519,7 +552,6 @@ static void showSameCategoryFallback(GameList& games,
         }
     }
 
-    // ---------- Table helpers ----------
     auto printBorder = [&]() {
         std::cout << "+"
             << std::string(ID_W + 2, '-') << "+"
@@ -542,7 +574,6 @@ static void showSameCategoryFallback(GameList& games,
         printBorder();
         };
 
-    // ---------- Print header ----------
     printBorder();
     std::cout << "|";
     printCell("Game ID", ID_W);     std::cout << "|";
@@ -551,7 +582,6 @@ static void showSameCategoryFallback(GameList& games,
     printCell("Avg Rating", AVG_W); std::cout << "|\n";
     printBorder();
 
-    // ---------- Paginated rows ----------
     for (int i = 0; i < count; i++) {
         std::cout << "|";
         printCell(list[i]->gameId, ID_W);     std::cout << "|";
@@ -569,17 +599,13 @@ static void showSameCategoryFallback(GameList& games,
 
         printBorder();
 
-        // pause every 5 rows
         if ((i + 1) % PAGE_SIZE == 0 && i + 1 < count) {
             std::string input = readLine("ENTER for more, or 0 to go back: ");
             if (input == "0") return;
-
-            // reprint header so borders stay consistent
             printHeader();
         }
     }
 
-    // last prompt
     readLine("Press ENTER to return (or type 0): ");
 }
 
@@ -587,6 +613,7 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     std::cout << "\n--- Recommend Games (Based on Ratings) ---\n";
     std::string input = readLine("Enter Game Name or Game ID: ");
 
+    // CHANGED: Uses updated findGameByIdOrName (case-insensitive)
     GameNode* target = findGameByIdOrName(games, input);
     if (!target) {
         std::cout << "Game not found. Please copy Game Name / Game ID from View Games.\n";
@@ -600,7 +627,6 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     std::string likedMembers[MAX_MEMBERS];
     int likedCount = 0;
 
-    // 1) Find members who "liked" the selected game (rating >= 7)
     RatingNode* r = ratings.getHead();
     while (r) {
         if (r->gameID == target->gameId && r->rating >= LIKE_THRESHOLD) {
@@ -616,7 +642,6 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         return;
     }
 
-    // 2) For those members, find other games they liked, count score per gameID
     std::string recGameIDs[MAX_GAMES];
     int recScores[MAX_GAMES];
     int recCount = 0;
@@ -647,7 +672,6 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         return;
     }
 
-    // Ask user how to sort
     int sortChoice = -1;
 
     while (true) {
@@ -667,31 +691,28 @@ static void recommendGames(GameList& games, RatingList& ratings) {
 
         if (sortChoice == 0) {
             std::cout << "Recommendation cancelled.\n";
-            return; // ← exit recommendGames(), back to Member Menu
+            return;
         }
 
         if (sortChoice == 1 || sortChoice == 2) {
-            break; // valid selection
+            break;
         }
 
         std::cout << "Please choose 1, 2, or 0.\n";
     }
 
-    // 3) Sort (bubble sort)
     for (int i = 0; i < recCount - 1; i++) {
         for (int j = 0; j < recCount - 1 - i; j++) {
 
             bool swapNeeded = false;
 
             if (sortChoice == 1) {
-                // Sort by Average Rating (desc)
                 double avgA = ratings.getAverage(recGameIDs[j]);
                 double avgB = ratings.getAverage(recGameIDs[j + 1]);
 
                 if (avgA < avgB) swapNeeded = true;
             }
             else {
-                // Sort by Likes count (desc)
                 if (recScores[j] < recScores[j + 1]) swapNeeded = true;
             }
 
@@ -715,13 +736,11 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     else
         std::cout << "(Sorted by Likes >= " << LIKE_THRESHOLD << ")\n\n";
 
-    // 4) Print top results (TABLE STYLE)
     std::cout << "\nRecommendations based on: " << target->gameName
         << " (" << target->gameId << ") | Category: " << target->category << "\n";
     std::cout << "Because members who rated this game >= " << LIKE_THRESHOLD
         << " also liked these games:\n\n";
 
-    // widths
     const int IDX_W = 4;
     const int ID_W = 8;
     const int NAME_W = 20;
@@ -743,7 +762,6 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         std::cout << " " << std::left << std::setw(w) << s << " ";
         };
 
-    // header
     printBorder();
     std::cout << "|";
     printCell("#", IDX_W);             std::cout << "|";
@@ -754,7 +772,6 @@ static void recommendGames(GameList& games, RatingList& ratings) {
     printCell("Likes(>=7)", LIKE_W);   std::cout << "|\n";
     printBorder();
 
-    // rows
     for (int i = 0; i < topN; i++) {
         GameNode* g = findGameByIdOrName(games, recGameIDs[i]);
         if (!g) continue;
@@ -787,11 +804,14 @@ static void recommendGames(GameList& games, RatingList& ratings) {
         << LIKE_THRESHOLD << "\n";
 }
 
+// UPDATED: Case-insensitive for both member and game
 static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList& plays) {
     std::cout << "\n--- Record Game Play ---\n";
 
     std::string gameName = readLine("Enter Game Name: ");
-    GameNode* g = games.findByName(gameName);
+
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
     if (!g) {
         std::cout << "Game not found.\n";
         return;
@@ -808,32 +828,43 @@ static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList&
     }
 
     PlayRecordNode* r = new PlayRecordNode();
-    r->gameName = gameName;
+    r->gameName = g->gameName;  // Use actual game name from database
     r->date = todayDate();
     r->playerCount = pCount;
 
     for (int i = 0; i < pCount; i++) {
         std::string pid = readLine("Player " + std::to_string(i + 1) + " MemberID: ");
-        if (!members.exists(pid)) {
+
+        // CHANGED: exists -> existsCaseInsensitive
+        if (!members.existsCaseInsensitive(pid)) {
             std::cout << "Member not found: " << pid << "\n";
             delete r;
             return;
         }
-        r->players[i] = pid;
+
+        // Get actual memberID from database
+        MemberNode* actualMember = members.findByIDCaseInsensitive(pid);
+        r->players[i] = actualMember->memberID;
     }
 
     std::string winner = readLine("Winner MemberID (or DRAW): ");
-    if (winner != "DRAW" && !members.exists(winner)) {
-        std::cout << "Winner unknown.\n";
-        delete r;
-        return;
+    if (winner != "DRAW") {
+        // CHANGED: exists -> existsCaseInsensitive
+        if (!members.existsCaseInsensitive(winner)) {
+            std::cout << "Winner unknown.\n";
+            delete r;
+            return;
+        }
+        // Get actual memberID from database
+        MemberNode* winnerMember = members.findByIDCaseInsensitive(winner);
+        r->winnerID = winnerMember->memberID;
     }
-    r->winnerID = winner;
+    else {
+        r->winnerID = "DRAW";
+    }
 
-    // store in memory
     plays.append(r);
 
-    // save to CSV
     if (!plays.appendToCSV("data/plays.csv", *r)) {
         std::cout << "WARNING: Could not append to plays.csv\n";
     }
@@ -842,19 +873,24 @@ static void recordGamePlay(GameList& games, MemberList& members, PlayRecordList&
     }
 }
 
-
-// ---------- NEW: Review actions ----------
+// UPDATED: Case-insensitive for both member and game
 static void memberWriteReview(GameList& games, MemberList& members, ReviewList& reviews) {
     std::cout << "\n--- Write a Review ---\n";
     std::string memberID = readLine("MemberID: ");
-    if (!members.exists(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // CHANGED: exists -> existsCaseInsensitive
+    if (!members.existsCaseInsensitive(memberID)) { std::cout << "Member not found.\n"; return; }
+
+    // Get actual member
+    MemberNode* member = members.findByIDCaseInsensitive(memberID);
 
     std::string gameName = readLine("Game Name: ");
-    GameNode* g = games.findByName(gameName);
-    if (!g) { std::cout << "Game not found. (Tip: copy the name exactly from View Games)\n"; return; }
 
-    // Check if already reviewed
-    if (reviews.hasReviewed(memberID, gameName)) {
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
+    if (!g) { std::cout << "Game not found.\n"; return; }
+
+    if (reviews.hasReviewed(member->memberID, g->gameName)) {
         std::cout << "You have already reviewed this game. This will update your previous review.\n";
     }
 
@@ -868,7 +904,6 @@ static void memberWriteReview(GameList& games, MemberList& members, ReviewList& 
     std::string reviewText;
     std::string line;
 
-    // Read multiple lines until empty line
     while (std::getline(std::cin, line)) {
         if (line.empty()) break;
         if (!reviewText.empty()) reviewText += "\n";
@@ -881,31 +916,36 @@ static void memberWriteReview(GameList& games, MemberList& members, ReviewList& 
         return;
     }
 
-    reviews.addOrUpdate(memberID, gameName, rating, reviewText, todayDate());
+    reviews.addOrUpdate(member->memberID, g->gameName, rating, reviewText, todayDate());
     std::cout << "\nReview saved successfully!\n";
 }
 
+// UPDATED: Case-insensitive game search
 static void memberReadReviews(GameList& games, ReviewList& reviews) {
     std::cout << "\n--- Read Reviews ---\n";
     std::string gameName = readLine("Enter Game Name: ");
-    GameNode* g = games.findByName(gameName);
-    if (!g) { std::cout << "Game not found. (Tip: copy the name exactly from View Games)\n"; return; }
 
-    reviews.printReviewsForGame(gameName);
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
+    if (!g) { std::cout << "Game not found.\n"; return; }
+
+    reviews.printReviewsForGame(g->gameName);  // Use actual game name
 }
 
-// ---------- View Game Details (uses ReviewList for average) ----------
+// UPDATED: Case-insensitive game search
 static void viewGameDetails(GameList& games, ReviewList& reviews) {
     std::cout << "\n--- Game Details ---\n";
     std::string gameName = readLine("Enter Game Name: ");
-    GameNode* g = games.findByName(gameName);
+
+    // CHANGED: findByName -> findByNameCaseInsensitive
+    GameNode* g = games.findByNameCaseInsensitive(gameName);
     if (!g) { std::cout << "Game not found.\n"; return; }
 
     printGamesHeader();
     printGameRow(g);
 
-    double avg = reviews.getAverage(gameName);
-    int count = reviews.countReviews(gameName);
+    double avg = reviews.getAverage(g->gameName);
+    int count = reviews.countReviews(g->gameName);
     if (avg < 0) std::cout << "Average Rating: No reviews yet\n";
     else std::cout << "Average Rating: " << std::fixed << std::setprecision(2) << avg
         << " (based on " << count << " review" << (count > 1 ? "s" : "") << ")\n";
@@ -913,7 +953,6 @@ static void viewGameDetails(GameList& games, ReviewList& reviews) {
     std::cout << "\nTip: Use 'Read Reviews for a Game' to see detailed reviews.\n";
 }
 
-// ---------- Sorting helper (uses ReviewList) ----------
 static double avgRatingForName(ReviewList& reviews, const std::string& gameName) {
     double avg = reviews.getAverage(gameName);
     return (avg < 0) ? 0.0 : avg;
@@ -989,13 +1028,12 @@ int main() {
     MemberList members;
     TransactionQueue tx;
     RatingList ratings;
-    ReviewList reviews;  // NEW: Review list
+    ReviewList reviews;
 
     games.loadFromCSV("data/games.csv");
     members.loadFromCSV("data/members.csv");
     ratings.loadFromCSV("data/ratings.csv");
     playRecords.loadFromCSV("data/plays.csv");
-
 
     int choice = -1;
     while (choice != 0) {
@@ -1033,19 +1071,33 @@ int main() {
                 else if (m == 2) memberReturn(games, members, tx);
                 else if (m == 3) {
                     std::string memberID = readLine("MemberID: ");
-                    tx.printByMember(memberID);
+                    // CHANGED: Use actual memberID from database
+                    MemberNode* member = members.findByIDCaseInsensitive(memberID);
+                    if (member) {
+                        tx.printByMember(member->memberID);
+                    }
+                    else {
+                        std::cout << "Member not found.\n";
+                    }
                 }
                 else if (m == 4) memberRate(games, members, ratings);
-                else if (m == 5) memberWriteReview(games, members, reviews);  // NEW
-                else if (m == 6) memberReadReviews(games, reviews);           // NEW
-                else if (m == 7) viewGameDetails(games, reviews);             // Updated to use reviews
-                else if (m == 8) gamesPlayableByN(games, reviews);            // Updated to use reviews
+                else if (m == 5) memberWriteReview(games, members, reviews);
+                else if (m == 6) memberReadReviews(games, reviews);
+                else if (m == 7) viewGameDetails(games, reviews);
+                else if (m == 8) gamesPlayableByN(games, reviews);
                 else if (m == 9) {
                     recordGamePlay(games, members, playRecords);
                 }
                 else if (m == 10) {
                     std::string memberID = readLine("MemberID: ");
-                    playRecords.printByMember(memberID);
+                    // CHANGED: Use actual memberID from database
+                    MemberNode* member = members.findByIDCaseInsensitive(memberID);
+                    if (member) {
+                        playRecords.printByMember(member->memberID);
+                    }
+                    else {
+                        std::cout << "Member not found.\n";
+                    }
                 }
                 else if (m == 11) recommendGames(games, ratings);
                 else if (m == 0) {}
