@@ -263,13 +263,28 @@ static void viewGamesAll(GameList& games) {
         pageCount++;
 
         if (curr) {
-            std::cout << "---- Showing " << shown
-                << " games so far. Press ENTER to load more ----";
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "---- Showing " << shown << " games so far ----\n";
+            std::cout << "Press ENTER to load more\n";
+            std::cout << "Press 0 to go back\n";
+            std::cout << "Choice: ";
+
+            std::string input;
+            std::getline(std::cin, input);
+
+            if (input == "0") {
+                return; // go back to menu
+            }
         }
     }
 
     std::cout << "\nEnd of list. Total games shown: " << shown << "\n";
+    std::cout << "Press 0 to go back: ";
+
+    std::string input;
+    while (true) {
+        std::getline(std::cin, input);
+        if (input == "0") break;
+    }
     std::cout << "Tip: Game names are now case-insensitive! (e.g., 'catan' will find 'Catan')\n";
 }
 
