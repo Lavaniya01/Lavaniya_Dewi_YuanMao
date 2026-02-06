@@ -981,6 +981,7 @@ static void gamesPlayableByN(GameList& games, ReviewList& reviews) {
     if (!(std::cin >> sortChoice)) { std::cin.clear(); clearInputLine(); return; }
     clearInputLine();
 
+    // 1. FILTERING: Collect matching games into a temporary array of pointers
     const int MAX = 5000;
     GameNode** arr = new GameNode * [MAX];
     int count = 0;
@@ -993,18 +994,25 @@ static void gamesPlayableByN(GameList& games, ReviewList& reviews) {
         curr = curr->next;
     }
 
+    if (count == 0) {
+        std::cout << "No games found for " << N << " players.\n";
+        delete[] arr;
+        return;
+    }
+
+    // 2. SORTING: Perform Bubble Sort on the pointer array
     if (sortChoice != 0) {
         for (int i = 0; i < count - 1; i++) {
             for (int j = 0; j < count - 1 - i; j++) {
                 bool swapNeeded = false;
 
-                if (sortChoice == 1) {
+                if (sortChoice == 1) { // Year Ascending
                     if (arr[j]->yearPublished > arr[j + 1]->yearPublished) swapNeeded = true;
                 }
-                else if (sortChoice == 2) {
+                else if (sortChoice == 2) { // Year Descending
                     if (arr[j]->yearPublished < arr[j + 1]->yearPublished) swapNeeded = true;
                 }
-                else if (sortChoice == 3) {
+                else if (sortChoice == 3) { // Rating Descending
                     double a = avgRatingForName(reviews, arr[j]->gameName);
                     double b = avgRatingForName(reviews, arr[j + 1]->gameName);
                     if (a < b) swapNeeded = true;
@@ -1019,11 +1027,25 @@ static void gamesPlayableByN(GameList& games, ReviewList& reviews) {
         }
     }
 
-    printGamesHeader();
+    // 3. DISPLAY: Paginated printing (10 games per page)
+    const int PAGE_SIZE = 10;
     for (int i = 0; i < count; i++) {
+        // Print the header at the top of every new page
+        if (i % PAGE_SIZE == 0) {
+            printGamesHeader();
+        }
+
         printGameRow(arr[i]);
+
+        // If we reached the end of a page and there are more games left
+        if ((i + 1) % PAGE_SIZE == 0 && (i + 1) < count) {
+            std::cout << "\n--- Showing " << (i + 1) << " of " << count << " matches ---";
+            std::string input = readLine("\nPress ENTER for next page, or 0 to back to menu: ");
+            if (input == "0") break; // Exit the loop if user enters '0'
+        }
     }
-    std::cout << "Matches for N=" << N << ": " << count << "\n";
+
+    std::cout << "\nTotal matches found for N=" << N << ": " << count << "\n";
 
     delete[] arr;
 }
