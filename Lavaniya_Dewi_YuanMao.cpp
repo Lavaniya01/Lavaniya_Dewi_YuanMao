@@ -237,56 +237,99 @@ static void printGameRow(GameNode* g) {
     printGamesBottomBorder();
 }
 
-static void viewGamesAll(GameList& games) {
+static int countGames(GameList& games) {
+    int count = 0;
     GameNode* curr = games.getHead();
-    if (!curr) {
+    while (curr) {
+        count++;
+        curr = curr->next;
+    }
+    return count;
+}
+
+static GameNode* getGameAtIndex(GameList& games, int index) {
+    GameNode* curr = games.getHead();
+    int i = 0;
+    while (curr && i < index) {
+        curr = curr->next;
+        i++;
+    }
+    return curr;
+}
+
+static void viewGamesAll(GameList& games) {
+    int total = countGames(games);
+    if (total == 0) {
         std::cout << "(No games loaded)\n";
         return;
     }
 
     const int PAGE_SIZE = 10;
-    int shown = 0;
-    int pageCount = 0;
+    int startIndex = 0;
 
-    printGamesHeader();
+    while (true) {
+        system("cls"); // remove if not allowed
 
-    while (curr) {
-        int printedThisPage = 0;
+        // Header every page
+        printGamesHeader();
 
-        while (curr && printedThisPage < PAGE_SIZE) {
+        GameNode* curr = getGameAtIndex(games, startIndex);
+        int printed = 0;
+
+        while (curr && printed < PAGE_SIZE) {
             printGameRow(curr);
             curr = curr->next;
-            printedThisPage++;
-            shown++;
+            printed++;
         }
 
-        pageCount++;
+        int pageNum = (startIndex / PAGE_SIZE) + 1;
+        int totalPages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
 
-        if (curr) {
-            std::cout << "---- Showing " << shown << " games so far ----\n";
-            std::cout << "Press ENTER to load more\n";
-            std::cout << "Press 0 to go back\n";
-            std::cout << "Choice: ";
+        int from = startIndex + 1;
+        int to = startIndex + printed;
 
-            std::string input;
-            std::getline(std::cin, input);
+        std::cout << "Page " << pageNum << " / " << totalPages
+                  << " | Showing " << from << "-" << to
+                  << " of " << total << "\n";
 
-            if (input == "0") {
-                return; // go back to menu
+        bool isLastPage = (startIndex + printed >= total);
+
+        if (isLastPage) {
+            std::cout << "\nEnd of list. Total games shown: " << total << "\n";
+            std::cout << "Tip: Game names are now case-insensitive! "
+                "(e.g., 'catan' will find 'Catan')\n";
+
+            std::cout << "[P] Prev  ";
+            std::cout << "[0] Back\n";
+        }
+        else {
+            std::cout << "[ENTER/N] Next  ";
+            std::cout << "[P] Prev  ";
+            std::cout << "[0] Back\n";
+        }
+
+        std::cout << "Choice: ";
+
+        std::string input;
+        std::getline(std::cin, input);
+
+        if (input == "0") return;
+
+        // Next page (ENTER counts as next)
+        if (input.empty() || input == "N" || input == "n") {
+            if (startIndex + PAGE_SIZE < total) {
+                startIndex += PAGE_SIZE;
             }
         }
+        // Previous page
+        else if (input == "P" || input == "p") {
+            startIndex -= PAGE_SIZE;
+            if (startIndex < 0) startIndex = 0;
+        }
     }
-
-    std::cout << "\nEnd of list. Total games shown: " << shown << "\n";
-    std::cout << "Press 0 to go back: ";
-
-    std::string input;
-    while (true) {
-        std::getline(std::cin, input);
-        if (input == "0") break;
-    }
-    std::cout << "Tip: Game names are now case-insensitive! (e.g., 'catan' will find 'Catan')\n";
 }
+
+
 
 // ---------- Admin actions ----------
 static void adminAddGame(GameList& games) {
